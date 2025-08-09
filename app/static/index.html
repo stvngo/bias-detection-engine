@@ -316,8 +316,11 @@
                         <p class="text-lg font-bold text-blue-900" x-text="newsResults.topic"></p>
                     </div>
                     <div class="bg-green-50 p-4 rounded-lg">
-                        <p class="text-sm text-green-600 font-medium">Articles Processed</p>
+                        <p class="text-sm text-green-600 font-medium">Articles Fetched</p>
                         <p class="text-lg font-bold text-green-900" x-text="newsResults.articles_analyzed"></p>
+                        <p class="text-xs text-green-700 mt-1">
+                            <span x-text="(newsResults.narrative_clusters || []).reduce((total, cluster) => total + cluster.articles.length, 0)"></span> displayed
+                        </p>
                     </div>
                     <div class="bg-purple-50 p-4 rounded-lg">
                         <p class="text-sm text-purple-600 font-medium">Total Time</p>
@@ -331,7 +334,13 @@
 
                 <!-- Article Grid with All 5 Dimensions -->
                 <div class="mb-8">
-                    <h4 class="text-lg font-medium text-gray-800 mb-4">Analyzed Articles - Full Bias Profiles</h4>
+                    <h4 class="text-lg font-medium text-gray-800 mb-4">
+                        Analyzed Articles - Full Bias Profiles 
+                        <span class="text-sm text-gray-600 ml-2">(
+                            <span x-text="(newsResults.narrative_clusters || []).reduce((total, cluster) => total + cluster.articles.length, 0)"></span> 
+                            of <span x-text="newsResults.articles_analyzed"></span> articles displayed)
+                        </span>
+                    </h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <template x-for="cluster in newsResults.narrative_clusters" :key="cluster.cluster_id">
                             <template x-for="article in cluster.articles" :key="article.title">
@@ -345,28 +354,37 @@
                                         <div class="flex justify-between items-center mb-1">
                                             <span class="text-xs font-medium text-gray-700">Overall Bias</span>
                                             <span class="text-xs font-bold" 
-                                                  :class="article.overall_bias_score > 70 ? 'text-green-600' : article.overall_bias_score > 40 ? 'text-yellow-600' : 'text-red-600'"
-                                                  x-text="`${article.overall_bias_score}/100`"></span>
+                                                  :class="(article.analysis?.overall_score || article.overall_bias_score || 50) > 70 ? 'text-green-600' : (article.analysis?.overall_score || article.overall_bias_score || 50) > 40 ? 'text-yellow-600' : 'text-red-600'"
+                                                  x-text="`${Math.round(article.analysis?.overall_score || article.overall_bias_score || 50)}/100`"></span>
                                         </div>
                                         <div class="w-full bg-gray-200 rounded-full h-2">
                                             <div class="h-2 rounded-full transition-all duration-500" 
-                                                 :class="article.overall_bias_score > 70 ? 'bg-green-500' : article.overall_bias_score > 40 ? 'bg-yellow-500' : 'bg-red-500'"
-                                                 :style="`width: ${article.overall_bias_score}%`"></div>
+                                                 :class="(article.analysis?.overall_score || article.overall_bias_score || 50) > 70 ? 'bg-green-500' : (article.analysis?.overall_score || article.overall_bias_score || 50) > 40 ? 'bg-yellow-500' : 'bg-red-500'"
+                                                 :style="`width: ${Math.round(article.analysis?.overall_score || article.overall_bias_score || 50)}%`"></div>
                                         </div>
                                     </div>
 
-                                    <!-- All 5 Dimensions -->
+                                    <!-- All 5 Dimensions from Analysis -->
                                     <div class="space-y-2">
-                                        <template x-for="(score, dimension) in (article.bias_profile || {})" :key="dimension">
+                                        <template x-for="(score, dimension) in (article.analysis?.dimension_scores || article.bias_profile || {})" :key="dimension">
                                             <div class="flex justify-between items-center text-xs">
                                                 <span class="text-gray-600 truncate" x-text="formatDimensionName(dimension).substring(0, 12)"></span>
-                                                <span class="font-medium" :class="getDimensionScoreColor(score)" x-text="score"></span>
+                                                <span class="font-medium" :class="getDimensionScoreColor(score)" x-text="Math.round(score)"></span>
                                             </div>
+                                        </template>
+                                    </div>
+
+                                    <!-- Confidence Intervals if Available -->
+                                    <div x-show="article.analysis?.confidence_intervals" class="mt-2 text-xs text-gray-500">
+                                        <span class="font-medium">Confidence: </span>
+                                        <template x-for="(interval, dim) in (article.analysis?.confidence_intervals || {})" :key="dim">
+                                            <span class="mr-1" x-text="`${formatDimensionName(dim).substring(0,3)}: (${interval[0]}-${interval[1]})`"></span>
                                         </template>
                                     </div>
 
                                     <div class="mt-3 flex justify-between items-center">
                                         <span class="text-xs text-blue-600 font-medium" x-text="`Cluster ${cluster.cluster_id + 1}`"></span>
+                                        <span x-show="article.analysis?.processing_time_ms" class="text-xs text-gray-400" x-text="`${Math.round(article.analysis.processing_time_ms)}ms`"></span>
                                     </div>
                                 </div>
                             </template>
@@ -428,11 +446,23 @@
                             </div>
 
                             <!-- Representative Phrases -->
-                            <div x-show="cluster.representative_phrases.length > 0">
+                            <div>
                                 <p class="text-sm font-medium text-gray-700 mb-2">Sample Phrases:</p>
-                                <template x-for="phrase in cluster.representative_phrases.slice(0, 2)" :key="phrase">
-                                    <p class="text-xs text-gray-600 italic mb-1" x-text="`"${phrase}"`"></p>
+                                <template x-show="cluster.representative_phrases && cluster.representative_phrases.length > 0" x-for="phrase in cluster.representative_phrases.slice(0, 3)" :key="phrase">
+                                    <div class="bg-gray-50 p-2 rounded text-xs text-gray-700 mb-1 border-l-2 border-blue-300">
+                                        <span class="italic" x-text="`"${phrase}"`"></span>
+                                    </div>
                                 </template>
+                                <div x-show="!cluster.representative_phrases || cluster.representative_phrases.length === 0" class="text-xs text-gray-500 italic">
+                                    <template x-if="cluster.articles && cluster.articles.length > 0">
+                                        <template x-for="phrase in getFirstBiasPhrasesFromCluster(cluster)" :key="phrase">
+                                            <div class="bg-gray-50 p-2 rounded text-xs text-gray-700 mb-1 border-l-2 border-yellow-300">
+                                                <span class="italic" x-text="`"${phrase}"`"></span>
+                                            </div>
+                                        </template>
+                                    </template>
+                                    <span x-show="(!cluster.articles || cluster.articles.length === 0) && (!cluster.representative_phrases || cluster.representative_phrases.length === 0)">No sample phrases available</span>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -895,6 +925,22 @@
                     if (score <= 50) return 'text-orange-500';
                     if (score <= 70) return 'text-yellow-500';
                     return 'text-green-500';
+                },
+
+                getFirstBiasPhrasesFromCluster(cluster) {
+                    // Extract first few highlighted phrases from articles in the cluster
+                    const phrases = [];
+                    if (cluster.articles && cluster.articles.length > 0) {
+                        for (const article of cluster.articles.slice(0, 2)) {
+                            if (article.analysis && article.analysis.highlighted_phrases) {
+                                const articlePhrases = article.analysis.highlighted_phrases
+                                    .slice(0, 2)
+                                    .map(p => p.text || p);
+                                phrases.push(...articlePhrases);
+                            }
+                        }
+                    }
+                    return phrases.slice(0, 3); // Return max 3 phrases
                 },
 
                 formatDimensionName(dimension) {
