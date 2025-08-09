@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Bias Lab - Advanced Media Bias Detection Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        .bias-meter {
+            background: linear-gradient(90deg, #dc2626 0%, #ea580c 25%, #eab308 50%, #16a34a 75%, #2563eb 100%);
+            height: 12px;
+            border-radius: 6px;
+            position: relative;
+        }
+        .bias-meter-pointer {
+            position: absolute;
+            top: -4px;
+            width: 20px;
+            height: 20px;
+            background-color: #3b82f6;
+            border-radius: 50%;
+            border: 2px solid white;
+            transform: translateX(-50%);
+            transition: left 0.5s ease-out;
+        }
+        .radar-chart-container {
+            position: relative;
+            height: 300px;
+            width: 300px;
+            margin: auto;
+        }
+        .cluster-point {
+            border-radius: 50%;
+            width: 8px;
+            height: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .cluster-point:hover {
+            transform: scale(2);
+        }
+        .highlighted-phrase {
+            background-color: #fef3c7;
+            padding: 4px 6px;
+            border-radius: 4px;
+            border-left: 3px solid #f59e0b;
+            margin: 4px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .highlighted-phrase:hover {
+            background-color: #fde68a;
+            transform: translateX(2px);
+        }
+        .dimension-score-bar {
+            height: 20px;
+            background: linear-gradient(90deg, #dc2626 0%, #ea580c 25%, #eab308 50%, #16a34a 75%, #2563eb 100%);
+            border-radius: 10px;
+            position: relative;
+            margin: 4px 0;
+        }
+        .dimension-score-indicator {
+            position: absolute;
+            top: -2px;
+            width: 4px;
+            height: 24px;
+            background-color: #1f2937;
+            border-radius: 2px;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+
+<body class="h-full bg-gray-50" x-data="biasApp()">
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-12 text-center">
+                <h1 class="text-5xl font-bold text-gray-800 mb-4">
+                    🎯 The Bias Lab
+                </h1>
+                <p class="text-xl text-gray-600 mb-6">
+                    Advanced AI-Powered Media Bias Detection with Real-Time News Analysis
+                </p>
+                <div class="flex justify-center space-x-8 text-sm text-gray-700">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                        OpenAI GPT-3.5 Turbo
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                        Narrative Clustering (PCA & t-SNE)
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
+                        Sub-500ms Analysis
+                    </div>
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                        Explainable AI
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8">
+                <button @click="activeTab = 'single'" 
+                        :class="activeTab === 'single' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                    Single Article Analysis
+                </button>
+                <button @click="activeTab = 'news'" 
+                        :class="activeTab === 'news' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                    Real-Time News Analysis
+                </button>
+                <button @click="activeTab = 'clustering'" 
+                        :class="activeTab === 'clustering' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                    Narrative Clustering
+                </button>
+                <button @click="activeTab = 'coverage'" 
+                        :class="activeTab === 'coverage' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                    Story Coverage Analysis
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Single Article Analysis Tab -->
+        <div x-show="activeTab === 'single'" class="space-y-8">
+            <!-- Control Panel -->
+            <div class="bg-white shadow-lg rounded-lg p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Analyze Article Bias</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div>
+                        <label for="articleTitle" class="block text-sm font-medium text-gray-700">Article Title</label>
+                        <input type="text" id="articleTitle" x-model="article.title" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="articleSource" class="block text-sm font-medium text-gray-700">Source</label>
+                        <input type="text" id="articleSource" x-model="article.source" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="articleURL" class="block text-sm font-medium text-gray-700">URL (Optional)</label>
+                        <input type="url" id="articleURL" x-model="article.url" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label for="articleContent" class="block text-sm font-medium text-gray-700">Article Content</label>
+                    <textarea id="articleContent" x-model="article.content" rows="8" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+
+                <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                    <div class="flex space-x-4">
+                        <button @click="analyzeBias" :disabled="loading" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span x-show="!loading">Analyze Bias</span>
+                            <span x-show="loading" class="flex items-center">
+                                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Analyzing...
+                            </span>
+                        </button>
+                        <button @click="loadSampleArticles" :disabled="loading" class="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                            Load Sample Articles
+                        </button>
+                    </div>
+                    <div x-show="analysisResult" class="text-sm text-gray-600">
+                        <span x-text="`Processing Time: ${analysisResult.processing_time_ms} ms`"></span>
+                        <span x-text="` | Model: ${analysisResult.model_used}`"></span>
+                    </div>
+                </div>
+
+                <div x-show="errorMessage" class="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md" x-text="errorMessage"></div>
+            </div>
+
+            <!-- Analysis Results -->
+            <div x-show="analysisResult" x-transition class="bg-white shadow-lg rounded-lg p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6">Bias Analysis Results</h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Overall Score & Detailed Dimensions -->
+                    <div>
+                        <h3 class="text-xl font-medium text-gray-700 mb-2">Overall Bias Score: <span class="font-bold" :class="getOverallScoreColor(analysisResult.overall_score)" x-text="`${analysisResult.overall_score}/100`"></span></h3>
+                        <p class="text-gray-600 mb-4" x-text="getOverallScoreDescription(analysisResult.overall_score)"></p>
+
+                        <div class="bias-meter mb-6">
+                            <div class="bias-meter-pointer" :style="`left: ${analysisResult.overall_score}%`"></div>
+                        </div>
+
+                        <h3 class="text-xl font-medium text-gray-700 mb-4">All 5 Dimension Scores:</h3>
+                        <div class="space-y-4">
+                            <template x-for="(score, dimension) in analysisResult.dimension_scores" :key="dimension">
+                                <div>
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="font-medium text-gray-700" x-text="formatDimensionName(dimension)"></span>
+                                        <div class="text-right">
+                                            <span :class="getDimensionScoreColor(score)" class="font-bold" x-text="`${score}/100`"></span>
+                                            <span class="text-xs text-gray-500 ml-2" x-text="getConfidenceInterval(analysisResult.confidence_intervals, dimension)"></span>
+                                        </div>
+                                    </div>
+                                    <div class="dimension-score-bar">
+                                        <div class="dimension-score-indicator" :style="`left: ${score}%`"></div>
+                                    </div>
+                                    <p class="text-xs text-gray-600 mt-1" x-text="getDimensionExplanation(dimension, score)"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Radar Chart -->
+                    <div class="flex justify-center items-center">
+                        <div class="radar-chart-container">
+                            <canvas id="biasRadarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Explainable AI Section -->
+                <div class="mt-8 border-t pt-8">
+                    <h3 class="text-xl font-medium text-gray-700 mb-4">🔍 Explainable AI - Why This Article Scored As It Did</h3>
+                    
+                    <div x-show="analysisResult.highlighted_phrases && analysisResult.highlighted_phrases.length > 0" class="mb-6">
+                        <h4 class="text-lg font-medium text-gray-700 mb-3">Key Bias Indicators:</h4>
+                        <template x-for="(phrase, index) in analysisResult.highlighted_phrases" :key="index">
+                            <div class="highlighted-phrase mb-3" @click="showPhraseDetails(phrase)">
+                                <div class="flex justify-between items-start">
+                                    <div class="flex-1">
+                                        <p class="text-gray-800 font-semibold mb-1" x-text="`'${phrase.text}'`"></p>
+                                        <p class="text-gray-600 text-sm" x-text="phrase.explanation"></p>
+                                        <div class="flex items-center mt-2 space-x-4">
+                                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded" x-text="`${phrase.confidence}% confidence`"></span>
+                                            <span class="text-xs text-gray-500" x-text="Object.keys(phrase.score_impact || {}).map(dim => `${formatDimensionName(dim)}: ${phrase.score_impact[dim] > 0 ? '+' : ''}${phrase.score_impact[dim]}`).join(', ')"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <div x-show="!analysisResult.highlighted_phrases || analysisResult.highlighted_phrases.length === 0" class="text-gray-500 italic mb-6">
+                        No specific bias indicators highlighted. The article appears relatively neutral across all dimensions.
+                    </div>
+
+                    <!-- Score Explanation -->
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h4 class="font-medium text-blue-900 mb-2">Score Breakdown:</h4>
+                        <template x-for="(score, dimension) in analysisResult.dimension_scores" :key="dimension">
+                            <p class="text-sm text-blue-800 mb-1">
+                                <span class="font-medium" x-text="formatDimensionName(dimension)"></span>: 
+                                <span x-text="getDetailedScoreExplanation(dimension, score)"></span>
+                            </p>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-Time News Analysis Tab -->
+        <div x-show="activeTab === 'news'" class="space-y-8">
+            <div class="bg-white shadow-lg rounded-lg p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Real-Time News Bias Analysis</h2>
+                <p class="text-gray-600 mb-6">Analyze current news articles from multiple sources to detect bias patterns. Enter a specific topic for targeted analysis.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label for="newsTopic" class="block text-sm font-medium text-gray-700">Topic</label>
+                        <input type="text" id="newsTopic" x-model="newsAnalysis.topic" placeholder="e.g., Ukraine war, election 2024, climate change" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="maxArticles" class="block text-sm font-medium text-gray-700">Max Articles</label>
+                        <select id="maxArticles" x-model="newsAnalysis.max_articles" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="10">10 articles</option>
+                            <option value="15">15 articles</option>
+                            <option value="20">20 articles</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button @click="analyzeCurrentNews" :disabled="newsLoading" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span x-show="!newsLoading">Analyze Current News</span>
+                    <span x-show="newsLoading" class="flex items-center">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Fetching & Analyzing...
+                    </span>
+                </button>
+
+                <div x-show="newsErrorMessage" class="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-md" x-text="newsErrorMessage"></div>
+            </div>
+
+            <!-- News Analysis Results -->
+            <div x-show="newsResults" x-transition class="bg-white shadow-lg rounded-lg p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">News Analysis Results</h3>
+                
+                <!-- Performance Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <p class="text-sm text-blue-600 font-medium">Topic Analyzed</p>
+                        <p class="text-lg font-bold text-blue-900" x-text="newsResults.topic"></p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <p class="text-sm text-green-600 font-medium">Articles Processed</p>
+                        <p class="text-lg font-bold text-green-900" x-text="newsResults.articles_analyzed"></p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <p class="text-sm text-purple-600 font-medium">Total Time</p>
+                        <p class="text-lg font-bold text-purple-900" x-text="`${Math.round(newsResults.processing_time_ms)} ms`"></p>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <p class="text-sm text-yellow-600 font-medium">Time per Article</p>
+                        <p class="text-lg font-bold text-yellow-900" x-text="`${Math.round(newsResults.processing_time_per_article_ms)} ms`"></p>
+                    </div>
+                </div>
+
+                <!-- Article Grid with All 5 Dimensions -->
+                <div class="mb-8">
+                    <h4 class="text-lg font-medium text-gray-800 mb-4">Analyzed Articles - Full Bias Profiles</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <template x-for="cluster in newsResults.narrative_clusters" :key="cluster.cluster_id">
+                            <template x-for="article in cluster.articles" :key="article.title">
+                                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                    <h5 class="font-medium text-gray-900 mb-2 text-sm leading-tight" x-text="article.title.substring(0, 60) + '...'"></h5>
+                                    <p class="text-xs text-gray-600 mb-2" x-text="article.source"></p>
+                                    <p class="text-xs text-gray-500 mb-3 italic" x-text="truncateContent(article.content, 120)"></p>
+                                    
+                                    <!-- Overall Score -->
+                                    <div class="mb-3">
+                                        <div class="flex justify-between items-center mb-1">
+                                            <span class="text-xs font-medium text-gray-700">Overall Bias</span>
+                                            <span class="text-xs font-bold" 
+                                                  :class="article.overall_bias_score > 70 ? 'text-green-600' : article.overall_bias_score > 40 ? 'text-yellow-600' : 'text-red-600'"
+                                                  x-text="`${article.overall_bias_score}/100`"></span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                            <div class="h-2 rounded-full transition-all duration-500" 
+                                                 :class="article.overall_bias_score > 70 ? 'bg-green-500' : article.overall_bias_score > 40 ? 'bg-yellow-500' : 'bg-red-500'"
+                                                 :style="`width: ${article.overall_bias_score}%`"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- All 5 Dimensions -->
+                                    <div class="space-y-2">
+                                        <template x-for="(score, dimension) in (article.bias_profile || {})" :key="dimension">
+                                            <div class="flex justify-between items-center text-xs">
+                                                <span class="text-gray-600 truncate" x-text="formatDimensionName(dimension).substring(0, 12)"></span>
+                                                <span class="font-medium" :class="getDimensionScoreColor(score)" x-text="score"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    <div class="mt-3 flex justify-between items-center">
+                                        <span class="text-xs text-blue-600 font-medium" x-text="`Cluster ${cluster.cluster_id + 1}`"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Narrative Clustering Tab -->
+        <div x-show="activeTab === 'clustering'" class="space-y-8">
+            <div x-show="newsResults && newsResults.cluster_visualizations" class="bg-white shadow-lg rounded-lg p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-6">Advanced Narrative Clustering Visualizations</h3>
+                
+                <!-- Cluster Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <template x-for="cluster in newsResults.narrative_clusters" :key="cluster.cluster_id">
+                        <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start mb-3">
+                                <h4 class="text-lg font-medium text-gray-900" x-text="`Narrative ${cluster.cluster_id + 1}`"></h4>
+                                <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded" x-text="`${cluster.size} articles`"></span>
+                            </div>
+                            
+                            <!-- Complete Bias Profile -->
+                            <div class="mb-4">
+                                <p class="text-sm font-medium text-gray-700 mb-2">Complete Bias Profile (0-100):</p>
+                                <div class="space-y-1 text-xs">
+                                    <div class="flex justify-between">
+                                        <span>Ideological Stance:</span>
+                                        <span class="font-medium" x-text="Math.round(cluster.bias_profile.ideological_stance)"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Factual Grounding:</span>
+                                        <span class="font-medium" x-text="Math.round(cluster.bias_profile.factual_grounding)"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Framing Choices:</span>
+                                        <span class="font-medium" x-text="Math.round(cluster.bias_profile.framing_choices)"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Emotional Tone:</span>
+                                        <span class="font-medium" x-text="Math.round(cluster.bias_profile.emotional_tone)"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Source Transparency:</span>
+                                        <span class="font-medium" x-text="Math.round(cluster.bias_profile.source_transparency)"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dominant Themes -->
+                            <div class="mb-4">
+                                <p class="text-sm font-medium text-gray-700 mb-2">Key Themes:</p>
+                                <div class="flex flex-wrap gap-1">
+                                    <template x-for="theme in cluster.dominant_themes.slice(0, 3)" :key="theme">
+                                        <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded" x-text="theme"></span>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- Representative Phrases -->
+                            <div x-show="cluster.representative_phrases.length > 0">
+                                <p class="text-sm font-medium text-gray-700 mb-2">Sample Phrases:</p>
+                                <template x-for="phrase in cluster.representative_phrases.slice(0, 2)" :key="phrase">
+                                    <p class="text-xs text-gray-600 italic mb-1" x-text="`"${phrase}"`"></p>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Multiple Visualization Types -->
+                <div x-show="newsResults.cluster_visualizations" class="space-y-8">
+                    <!-- PCA Visualization -->
+                    <div x-show="newsResults.cluster_visualizations.pca" class="bg-gray-50 p-6 rounded-lg">
+                        <h4 class="text-lg font-medium text-gray-800 mb-4" x-text="newsResults.cluster_visualizations.pca?.title"></h4>
+                        <p class="text-sm text-gray-600 mb-4" x-text="`Explained Variance: PC1: ${Math.round((newsResults.cluster_visualizations.pca?.explained_variance[0] || 0) * 100)}%, PC2: ${Math.round((newsResults.cluster_visualizations.pca?.explained_variance[1] || 0) * 100)}%`"></p>
+                        <div id="pcaVisualization" class="w-full h-96 bg-white rounded border"></div>
+                    </div>
+
+                    <!-- t-SNE Visualization -->
+                    <div x-show="newsResults.cluster_visualizations.tsne" class="bg-gray-50 p-6 rounded-lg">
+                        <h4 class="text-lg font-medium text-gray-800 mb-4" x-text="newsResults.cluster_visualizations.tsne?.title"></h4>
+                        <p class="text-sm text-gray-600 mb-4" x-text="`Perplexity: ${newsResults.cluster_visualizations.tsne?.perplexity || 'N/A'}`"></p>
+                        <div id="tsneVisualization" class="w-full h-96 bg-white rounded border"></div>
+                    </div>
+
+                    <!-- Bias Distribution -->
+                    <div x-show="newsResults.cluster_visualizations.bias_distribution" class="bg-gray-50 p-6 rounded-lg">
+                        <h4 class="text-lg font-medium text-gray-800 mb-4" x-text="newsResults.cluster_visualizations.bias_distribution?.title"></h4>
+                        <div id="biasDistributionVisualization" class="w-full h-96 bg-white rounded border"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="!newsResults" class="bg-white shadow-lg rounded-lg p-6 text-center">
+                <p class="text-gray-500">Run a news analysis first to see narrative clustering results.</p>
+                <button @click="activeTab = 'news'" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200">
+                    Go to News Analysis
+                </button>
+            </div>
+        </div>
+
+        <!-- Story Coverage Analysis Tab -->
+        <div x-show="activeTab === 'coverage'" class="space-y-8">
+            <div x-show="newsResults && newsResults.story_coverage_analysis" class="bg-white shadow-lg rounded-lg p-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-6">📰 How Different Outlets Cover the Same Story</h3>
+                
+                <!-- Same Story Different Coverage -->
+                <div x-show="newsResults.story_coverage_analysis.same_story_different_coverage?.length > 0" class="mb-8">
+                    <h4 class="text-lg font-medium text-gray-800 mb-4">Same Story, Different Perspectives</h4>
+                    <template x-for="coverage in newsResults.story_coverage_analysis.same_story_different_coverage" :key="coverage.topic">
+                        <div class="border border-gray-200 rounded-lg p-4 mb-4">
+                            <h5 class="font-medium text-gray-900 mb-2" x-text="`Topic: ${coverage.topic}`"></h5>
+                            <p class="text-sm text-gray-600 mb-3" x-text="`Covered by ${coverage.sources.length} different sources with bias scores ranging from ${Math.round(coverage.bias_range.min)} to ${Math.round(coverage.bias_range.max)}`"></p>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <template x-for="article in coverage.articles" :key="article.title">
+                                    <div class="bg-gray-50 p-3 rounded">
+                                        <p class="text-sm font-medium text-gray-900 mb-1" x-text="article.source"></p>
+                                        <p class="text-xs text-gray-600 mb-2" x-text="article.title.substring(0, 80) + '...'"></p>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-xs text-gray-500">Bias Score:</span>
+                                            <span class="text-xs font-bold" :class="getDimensionScoreColor(article.overall_score)" x-text="`${article.overall_score}/100`"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Source Bias Spectrum -->
+                <div x-show="newsResults.story_coverage_analysis.bias_spectrum_by_source" class="mb-8">
+                    <h4 class="text-lg font-medium text-gray-800 mb-4">Bias Spectrum by News Source</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <template x-for="(data, source) in newsResults.story_coverage_analysis.bias_spectrum_by_source" :key="source">
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <h5 class="font-medium text-gray-900 mb-2" x-text="source"></h5>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Average Bias:</span>
+                                        <span class="font-medium" :class="getDimensionScoreColor(data.average_bias)" x-text="`${Math.round(data.average_bias)}/100`"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Confidence:</span>
+                                        <span class="font-medium" x-text="`${Math.round(data.bias_confidence)}%`"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Articles:</span>
+                                        <span class="font-medium" x-text="data.article_count"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Range:</span>
+                                        <span class="text-xs" x-text="`${Math.round(data.score_range[0])}-${Math.round(data.score_range[1])}`"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="!newsResults || !newsResults.story_coverage_analysis" class="bg-white shadow-lg rounded-lg p-6 text-center">
+                <p class="text-gray-500">Run a news analysis first to see story coverage analysis.</p>
+                <button @click="activeTab = 'news'" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200">
+                    Go to News Analysis
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function biasApp() {
+            return {
+                activeTab: 'single',
+                article: {
+                    title: '',
+                    content: '',
+                    source: '',
+                    url: ''
+                },
+                newsAnalysis: {
+                    topic: '',
+                    max_articles: 15
+                },
+                analysisResult: null,
+                newsResults: null,
+                loading: false,
+                newsLoading: false,
+                errorMessage: '',
+                newsErrorMessage: '',
+                radarChart: null,
+
+                init() {
+                    this.$watch('analysisResult', (result) => {
+                        if (result) {
+                            this.updateRadarChart(result.dimension_scores);
+                        }
+                    });
+                    this.$watch('newsResults', (results) => {
+                        if (results && results.cluster_visualizations) {
+                            setTimeout(() => {
+                                this.renderClusterVisualizations(results.cluster_visualizations);
+                            }, 100);
+                        }
+                    });
+                },
+
+                async analyzeBias() {
+                    this.loading = true;
+                    this.errorMessage = '';
+                    this.analysisResult = null;
+
+                    try {
+                        const response = await fetch('/analyze/article', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.article)
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.detail || 'Failed to analyze article');
+                        }
+
+                        this.analysisResult = await response.json();
+                    } catch (error) {
+                        this.errorMessage = error.message;
+                        console.error('Analysis error:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async analyzeCurrentNews() {
+                    this.newsLoading = true;
+                    this.newsErrorMessage = '';
+                    this.newsResults = null;
+
+                    try {
+                        const response = await fetch('/analyze/news', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.newsAnalysis)
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.detail || 'Failed to analyze news');
+                        }
+
+                        this.newsResults = await response.json();
+                        this.activeTab = 'clustering';
+                    } catch (error) {
+                        this.newsErrorMessage = error.message;
+                        console.error('News analysis error:', error);
+                    } finally {
+                        this.newsLoading = false;
+                    }
+                },
+
+                async loadSampleArticles() {
+                    this.loading = true;
+                    this.errorMessage = '';
+                    this.analysisResult = null;
+
+                    try {
+                        const response = await fetch('/demo/sample-articles');
+                        if (!response.ok) throw new Error('Failed to fetch sample articles');
+                        
+                        const samples = await response.json();
+                        if (samples.length > 0) {
+                            this.article = { ...samples[0] };
+                            await this.analyzeBias();
+                        } else {
+                            this.errorMessage = 'No sample articles available.';
+                        }
+                    } catch (error) {
+                        this.errorMessage = error.message;
+                        console.error('Sample loading error:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                renderClusterVisualizations(vizData) {
+                    // Render PCA visualization
+                    if (vizData.pca) {
+                        this.renderScatterPlot('pcaVisualization', vizData.pca, 'PCA Components');
+                    }
+                    
+                    // Render t-SNE visualization  
+                    if (vizData.tsne) {
+                        this.renderScatterPlot('tsneVisualization', vizData.tsne, 't-SNE Dimensions');
+                    }
+                    
+                    // Render bias distribution
+                    if (vizData.bias_distribution) {
+                        this.renderBiasDistribution('biasDistributionVisualization', vizData.bias_distribution);
+                    }
+                },
+
+                renderScatterPlot(containerId, data, axisLabel) {
+                    const container = document.getElementById(containerId);
+                    if (!container || !data.points) return;
+
+                    container.innerHTML = `
+                        <div class="w-full h-full relative">
+                            <canvas id="${containerId}Chart" class="w-full h-full"></canvas>
+                        </div>
+                    `;
+
+                    const canvas = container.querySelector('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+                    const datasets = {};
+                    
+                    data.points.forEach(point => {
+                        const cluster = point.cluster;
+                        if (!datasets[cluster]) {
+                            datasets[cluster] = {
+                                label: `Cluster ${cluster + 1}`,
+                                data: [],
+                                backgroundColor: colors[cluster % colors.length],
+                                borderColor: colors[cluster % colors.length],
+                                pointRadius: 6,
+                                pointHoverRadius: 8
+                            };
+                        }
+                        datasets[cluster].data.push({
+                            x: point.x,
+                            y: point.y,
+                            title: point.title,
+                            source: point.source,
+                            bias_score: point.bias_score
+                        });
+                    });
+
+                    new Chart(ctx, {
+                        type: 'scatter',
+                        data: { datasets: Object.values(datasets) },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: { title: { display: true, text: `${axisLabel} 1` } },
+                                y: { title: { display: true, text: `${axisLabel} 2` } }
+                            },
+                            plugins: {
+                                legend: { display: true, position: 'top' },
+                                tooltip: {
+                                    callbacks: {
+                                        title: function(context) {
+                                            return context[0].raw.title;
+                                        },
+                                        label: function(context) {
+                                            return [
+                                                `Source: ${context.raw.source}`,
+                                                `Bias Score: ${context.raw.bias_score}/100`,
+                                                `Coordinates: (${context.raw.x.toFixed(2)}, ${context.raw.y.toFixed(2)})`
+                                            ];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                },
+
+                renderBiasDistribution(containerId, data) {
+                    const container = document.getElementById(containerId);
+                    if (!container || !data.points) return;
+
+                    container.innerHTML = `<canvas id="${containerId}Chart" class="w-full h-full"></canvas>`;
+                    const canvas = container.querySelector('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+                    
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.points.map((_, i) => `Article ${i + 1}`),
+                            datasets: [{
+                                label: 'Bias Score',
+                                data: data.points.map(p => p.bias_score),
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                pointBackgroundColor: data.points.map(p => colors[p.cluster % colors.length]),
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2,
+                                pointRadius: 6,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { 
+                                    min: 0, 
+                                    max: 100,
+                                    title: { display: true, text: 'Bias Score (0-100)' }
+                                },
+                                x: { title: { display: true, text: 'Articles' } }
+                            },
+                            plugins: {
+                                legend: { display: true },
+                                tooltip: {
+                                    callbacks: {
+                                        title: function(context) {
+                                            return data.points[context[0].dataIndex].title;
+                                        },
+                                        label: function(context) {
+                                            const point = data.points[context.dataIndex];
+                                            return [
+                                                `Source: ${point.source}`,
+                                                `Bias Score: ${point.bias_score}/100`,
+                                                `Cluster: ${point.cluster + 1}`
+                                            ];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                },
+
+                updateRadarChart(scores) {
+                    const ctx = document.getElementById('biasRadarChart').getContext('2d');
+                    const data = {
+                        labels: ['Ideological Stance', 'Factual Grounding', 'Framing Choices', 'Emotional Tone', 'Source Transparency'],
+                        datasets: [{
+                            label: 'Bias Score',
+                            data: [
+                                scores.ideological_stance,
+                                scores.factual_grounding,
+                                scores.framing_choices,
+                                scores.emotional_tone,
+                                scores.source_transparency
+                            ],
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 6
+                        }]
+                    };
+
+                    const options = {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                angleLines: { display: true },
+                                suggestedMin: 0,
+                                suggestedMax: 100,
+                                ticks: { display: true, stepSize: 20 },
+                                grid: { color: 'rgba(209, 213, 219, 0.5)' },
+                                pointLabels: {
+                                    font: { size: 12, weight: 'bold' },
+                                    color: '#4b5563'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.label}: ${context.raw}/100`;
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    if (this.radarChart) this.radarChart.destroy();
+                    this.radarChart = new Chart(ctx, { type: 'radar', data, options });
+                },
+
+                showPhraseDetails(phrase) {
+                    const scoreImpacts = Object.entries(phrase.score_impact || {})
+                        .map(([dim, impact]) => `${this.formatDimensionName(dim)}: ${impact > 0 ? '+' : ''}${impact}`)
+                        .join('\n');
+                    
+                    alert(`Phrase: "${phrase.text}"\n\nExplanation: ${phrase.explanation}\n\nConfidence: ${phrase.confidence}%\n\nScore Impacts:\n${scoreImpacts}`);
+                },
+
+                getDimensionExplanation(dimension, score) {
+                    const explanations = {
+                        ideological_stance: score < 30 ? 'Strong left-leaning perspective' : score < 50 ? 'Moderate left-leaning' : score < 70 ? 'Centrist/balanced' : 'Right-leaning perspective',
+                        factual_grounding: score < 30 ? 'Low factual basis, many unsubstantiated claims' : score < 50 ? 'Some factual issues' : score < 70 ? 'Mostly factual with some gaps' : 'Strong factual foundation',
+                        framing_choices: score < 30 ? 'Highly biased framing, loaded language' : score < 50 ? 'Some biased framing' : score < 70 ? 'Fairly balanced presentation' : 'Objective, balanced framing',
+                        emotional_tone: score < 30 ? 'Highly emotional, inflammatory language' : score < 50 ? 'Somewhat emotional' : score < 70 ? 'Moderate tone' : 'Calm, analytical tone',
+                        source_transparency: score < 30 ? 'Poor source attribution' : score < 50 ? 'Some source issues' : score < 70 ? 'Adequate sourcing' : 'Excellent source transparency'
+                    };
+                    return explanations[dimension] || 'No explanation available';
+                },
+
+                getDetailedScoreExplanation(dimension, score) {
+                    return `${score}/100 - ${this.getDimensionExplanation(dimension, score)}`;
+                },
+
+                getOverallScoreColor(score) {
+                    if (score <= 30) return 'text-red-600';
+                    if (score <= 50) return 'text-orange-600';
+                    if (score <= 70) return 'text-yellow-600';
+                    return 'text-green-600';
+                },
+
+                getOverallScoreDescription(score) {
+                    if (score <= 20) return 'Very High Bias: Extreme bias across multiple dimensions.';
+                    if (score <= 40) return 'High Bias: Significant bias with clear lean or strong emotional tone.';
+                    if (score <= 60) return 'Moderate Bias: Some noticeable bias but attempts at balance.';
+                    if (score <= 80) return 'Low Bias: Largely objective with minimal bias.';
+                    return 'Very Low Bias: Highly objective, factual, and transparent.';
+                },
+
+                getDimensionScoreColor(score) {
+                    if (score <= 30) return 'text-red-500';
+                    if (score <= 50) return 'text-orange-500';
+                    if (score <= 70) return 'text-yellow-500';
+                    return 'text-green-500';
+                },
+
+                formatDimensionName(dimension) {
+                    return dimension.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                },
+
+                getConfidenceInterval(confidenceIntervals, dimension) {
+                    if (!confidenceIntervals || !confidenceIntervals[dimension]) {
+                        return '(±10)';
+                    }
+                    const interval = confidenceIntervals[dimension];
+                    if (Array.isArray(interval) && interval.length === 2) {
+                        return `(${interval[0]}-${interval[1]})`;
+                    }
+                    return '(±10)';
+                },
+
+                truncateContent(content, maxLength) {
+                    if (!content) return '';
+                    if (content.length <= maxLength) return content;
+                    return content.substring(0, maxLength) + '...';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
