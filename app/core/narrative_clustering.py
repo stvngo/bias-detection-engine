@@ -369,8 +369,12 @@ class NarrativeClusteringEngine:
                 'articles': [
                     {
                         'title': article.get('title', ''),
+                        'content': article.get('content', '')[:200] + '...' if len(article.get('content', '')) > 200 else article.get('content', ''),
                         'source': article.get('source', ''),
-                        'overall_bias_score': article.get('analysis', {}).get('overall_score', 50)
+                        'url': article.get('url', ''),
+                        'published_at': article.get('published_at', ''),
+                        'overall_bias_score': article.get('analysis', {}).get('overall_score', 50),
+                        'analysis': article.get('analysis', {})  # Include FULL analysis data
                     }
                     for article in cluster.articles
                 ]

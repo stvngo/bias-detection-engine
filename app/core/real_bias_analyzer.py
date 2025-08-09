@@ -35,20 +35,26 @@ class RealBiasAnalyzer:
         except LookupError:
             nltk.download('stopwords', quiet=True)
             
-        # Bias-indicating word lists (based on research)
+        # Expanded bias-indicating word lists (based on research)
         self.loaded_words = {
             'positive': ['amazing', 'breakthrough', 'revolutionary', 'historic', 'unprecedented', 
-                        'triumphant', 'victory', 'success', 'achievement', 'progress'],
+                        'triumphant', 'victory', 'success', 'achievement', 'progress', 'excellent',
+                        'outstanding', 'remarkable', 'exceptional', 'impressive', 'wonderful'],
             'negative': ['devastating', 'catastrophic', 'disaster', 'failure', 'crisis', 
-                        'collapse', 'chaos', 'scandal', 'corruption', 'betrayal'],
+                        'collapse', 'chaos', 'scandal', 'corruption', 'betrayal', 'terrible',
+                        'awful', 'shocking', 'outrageous', 'disturbing', 'alarming'],
             'partisan_left': ['progressive', 'reform', 'justice', 'equality', 'inclusive', 
-                             'sustainable', 'grassroots', 'community'],
+                             'sustainable', 'grassroots', 'community', 'diversity', 'social justice',
+                             'climate action', 'systemic', 'marginalized', 'oppressed'],
             'partisan_right': ['traditional', 'conservative', 'freedom', 'liberty', 'patriotic', 
-                              'security', 'law and order', 'values'],
+                              'security', 'law and order', 'values', 'family values', 'free market',
+                              'individual responsibility', 'constitutional', 'fiscal'],
             'hedging': ['allegedly', 'reportedly', 'supposedly', 'claims', 'sources say', 
-                       'it appears', 'seems to', 'may have'],
+                       'it appears', 'seems to', 'may have', 'could be', 'might be', 'possible',
+                       'appears to', 'suggests', 'indicates', 'believed to'],
             'certainty': ['definitely', 'certainly', 'undoubtedly', 'clearly', 'obviously', 
-                         'without question', 'proves', 'confirms']
+                         'without question', 'proves', 'confirms', 'established',
+                         'undeniable', 'absolute', 'guaranteed', 'conclusive']
         }
         
         # Emotional intensity words
@@ -286,11 +292,15 @@ class RealBiasAnalyzer:
         all_phrases = (ideological_phrases + factual_phrases + framing_phrases + 
                       emotional_phrases + transparency_phrases)
         
+        # If no specific bias phrases found, extract general meaningful phrases
+        if len(all_phrases) == 0:
+            all_phrases = self._extract_fallback_phrases(full_text)
+        
         # Add explanations to phrases
         for phrase in all_phrases:
             if 'explanation' not in phrase:
                 phrase['explanation'] = self._generate_phrase_explanation(phrase)
-                phrase['confidence'] = 0.8  # High confidence for rule-based detection
+                phrase['confidence'] = phrase.get('confidence', 0.7)  # Default confidence
         
         dimension_scores = {
             "ideological_stance": ideological_score,
@@ -321,6 +331,38 @@ class RealBiasAnalyzer:
             "analysis_method": "rule_based_nlp_with_sentiment"
         }
     
+    def _extract_fallback_phrases(self, text: str) -> List[Dict]:
+        """Extract meaningful phrases when no specific bias indicators are found"""
+        sentences = text.split('.')[:3]  # Take first 3 sentences
+        fallback_phrases = []
+        
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if len(sentence) > 20:  # Only meaningful sentences
+                # Look for key phrases like quotes, assertions, or claims
+                if any(word in sentence.lower() for word in ['said', 'according to', 'reported', 'claims', 'states']):
+                    # Extract a key phrase (up to 60 characters)
+                    phrase_text = sentence[:60] + '...' if len(sentence) > 60 else sentence
+                    fallback_phrases.append({
+                        'text': phrase_text,
+                        'type': 'neutral_statement',
+                        'score_impact': {'overall': 0},
+                        'confidence': 0.5,
+                        'explanation': f"Key statement from article: '{phrase_text}'"
+                    })
+        
+        # If still no phrases, use title and source
+        if len(fallback_phrases) == 0:
+            fallback_phrases.append({
+                'text': text.split('.')[0][:50] + '...' if len(text.split('.')[0]) > 50 else text.split('.')[0],
+                'type': 'headline',
+                'score_impact': {'overall': 0},
+                'confidence': 0.3,
+                'explanation': "Article headline for reference"
+            })
+        
+        return fallback_phrases[:3]  # Max 3 fallback phrases
+
     def _generate_phrase_explanation(self, phrase: Dict) -> str:
         """Generate explanations for detected bias phrases"""
         phrase_type = phrase.get('type', phrase.get('bias_direction', 'unknown'))
@@ -334,7 +376,9 @@ class RealBiasAnalyzer:
             'negative_loaded': f"'{phrase['text']}' is emotionally negative loaded language",
             'emotion_amplifier': f"'{phrase['text']}' amplifies emotional intensity beyond neutral reporting",
             'source_attribution': f"'{phrase['text']}' provides proper source attribution",
-            'anonymous_source': f"'{phrase['text']}' relies on anonymous sources, reducing transparency"
+            'anonymous_source': f"'{phrase['text']}' relies on anonymous sources, reducing transparency",
+            'neutral_statement': f"'{phrase['text']}' is a key factual statement from the article",
+            'headline': f"'{phrase['text']}' is the article headline or key opening statement"
         }
         
         return explanations.get(phrase_type, f"'{phrase['text']}' may indicate reporting bias")
