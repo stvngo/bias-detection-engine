@@ -448,6 +448,9 @@
                             <!-- Representative Phrases -->
                             <div>
                                 <p class="text-sm font-medium text-gray-700 mb-2">Sample Phrases:</p>
+                                <!-- Debug info -->
+                                <div class="text-xs text-gray-400 mb-1" x-text="`DEBUG: representative_phrases count: ${cluster.representative_phrases ? cluster.representative_phrases.length : 'undefined'}`"></div>
+                                
                                 <div x-show="cluster.representative_phrases && cluster.representative_phrases.length > 0">
                                     <template x-for="phrase in cluster.representative_phrases.slice(0, 3)" :key="phrase">
                                         <div class="bg-gray-50 p-2 rounded text-xs text-gray-700 mb-1 border-l-2 border-blue-300">
@@ -936,6 +939,7 @@
                 getFirstBiasPhrasesFromCluster(cluster) {
                     // Extract first few highlighted phrases from articles in the cluster
                     const phrases = [];
+                    console.log('DEBUG: getFirstBiasPhrasesFromCluster called with cluster:', cluster);
                     if (cluster.articles && cluster.articles.length > 0) {
                         for (const article of cluster.articles.slice(0, 2)) {
                             if (article.analysis && article.analysis.highlighted_phrases) {
@@ -943,9 +947,11 @@
                                     .slice(0, 2)
                                     .map(p => p.text || p);
                                 phrases.push(...articlePhrases);
+                                console.log('DEBUG: Added phrases from article:', articlePhrases);
                             }
                         }
                     }
+                    console.log('DEBUG: Final phrases array:', phrases);
                     return phrases.slice(0, 3); // Return max 3 phrases
                 },
 
