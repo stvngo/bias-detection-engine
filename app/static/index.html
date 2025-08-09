@@ -448,30 +448,35 @@
                             <!-- Representative Phrases -->
                             <div>
                                 <p class="text-sm font-medium text-gray-700 mb-2">Sample Phrases:</p>
-                                <!-- Debug info -->
-                                <div class="text-xs text-gray-400 mb-1" x-text="`DEBUG: representative_phrases count: ${cluster.representative_phrases ? cluster.representative_phrases.length : 'undefined'}`"></div>
                                 
-                                <div x-show="cluster.representative_phrases && cluster.representative_phrases.length > 0">
-                                    <template x-for="phrase in cluster.representative_phrases.slice(0, 3)" :key="phrase">
-                                        <div class="bg-gray-50 p-2 rounded text-xs text-gray-700 mb-1 border-l-2 border-blue-300">
-                                            <span class="italic" x-text='"' + phrase + '"'></span>
-                                        </div>
-                                    </template>
-                                </div>
-                                <div x-show="!cluster.representative_phrases || cluster.representative_phrases.length === 0">
-                                    <template x-if="cluster.articles && cluster.articles.length > 0">
-                                        <div>
-                                            <template x-for="phrase in getFirstBiasPhrasesFromCluster(cluster)" :key="phrase">
-                                                <div class="bg-gray-50 p-2 rounded text-xs text-gray-700 mb-1 border-l-2 border-yellow-300">
-                                                    <span class="italic" x-text='"' + phrase + '"'></span>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                    <div x-show="(!cluster.articles || cluster.articles.length === 0) && (!cluster.representative_phrases || cluster.representative_phrases.length === 0)" class="text-xs text-gray-500 italic">
+                                <!-- Show representative phrases if available -->
+                                <template x-if="cluster.representative_phrases && cluster.representative_phrases.length > 0">
+                                    <div>
+                                        <template x-for="phrase in cluster.representative_phrases.slice(0, 3)" :key="phrase">
+                                            <div class="bg-gray-50 p-2 rounded text-xs text-gray-700 mb-1 border-l-2 border-blue-300">
+                                                <span class="italic" x-text="'\"' + phrase + '\"'"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                
+                                <!-- Fallback to article phrases if no representative phrases -->
+                                <template x-if="(!cluster.representative_phrases || cluster.representative_phrases.length === 0) && cluster.articles && cluster.articles.length > 0">
+                                    <div>
+                                        <template x-for="phrase in getFirstBiasPhrasesFromCluster(cluster)" :key="phrase">
+                                            <div class="bg-gray-50 p-2 rounded text-xs text-gray-700 mb-1 border-l-2 border-yellow-300">
+                                                <span class="italic" x-text="'\"' + phrase + '\"'"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                
+                                <!-- No phrases available message -->
+                                <template x-if="(!cluster.representative_phrases || cluster.representative_phrases.length === 0) && (!cluster.articles || cluster.articles.length === 0 || getFirstBiasPhrasesFromCluster(cluster).length === 0)">
+                                    <div class="text-xs text-gray-500 italic">
                                         No sample phrases available
                                     </div>
-                                </div>
+                                </template>
                             </div>
                         </div>
                     </template>
@@ -939,19 +944,17 @@
                 getFirstBiasPhrasesFromCluster(cluster) {
                     // Extract first few highlighted phrases from articles in the cluster
                     const phrases = [];
-                    console.log('DEBUG: getFirstBiasPhrasesFromCluster called with cluster:', cluster);
-                    if (cluster.articles && cluster.articles.length > 0) {
+                    if (cluster && cluster.articles && Array.isArray(cluster.articles)) {
                         for (const article of cluster.articles.slice(0, 2)) {
-                            if (article.analysis && article.analysis.highlighted_phrases) {
+                            if (article && article.analysis && article.analysis.highlighted_phrases && Array.isArray(article.analysis.highlighted_phrases)) {
                                 const articlePhrases = article.analysis.highlighted_phrases
                                     .slice(0, 2)
-                                    .map(p => p.text || p);
+                                    .map(p => (typeof p === 'object' && p.text) ? p.text : p)
+                                    .filter(p => p && typeof p === 'string');
                                 phrases.push(...articlePhrases);
-                                console.log('DEBUG: Added phrases from article:', articlePhrases);
                             }
                         }
                     }
-                    console.log('DEBUG: Final phrases array:', phrases);
                     return phrases.slice(0, 3); // Return max 3 phrases
                 },
 
