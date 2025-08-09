@@ -448,20 +448,26 @@
                             <!-- Representative Phrases -->
                             <div>
                                 <p class="text-sm font-medium text-gray-700 mb-2">Sample Phrases:</p>
-                                <template x-show="cluster.representative_phrases && cluster.representative_phrases.length > 0" x-for="phrase in cluster.representative_phrases.slice(0, 3)" :key="phrase">
-                                    <div class="bg-gray-50 p-2 rounded text-xs text-gray-700 mb-1 border-l-2 border-blue-300">
-                                        <span class="italic" x-text="`"${phrase}"`"></span>
-                                    </div>
-                                </template>
-                                <div x-show="!cluster.representative_phrases || cluster.representative_phrases.length === 0" class="text-xs text-gray-500 italic">
-                                    <template x-if="cluster.articles && cluster.articles.length > 0">
-                                        <template x-for="phrase in getFirstBiasPhrasesFromCluster(cluster)" :key="phrase">
-                                            <div class="bg-gray-50 p-2 rounded text-xs text-gray-700 mb-1 border-l-2 border-yellow-300">
-                                                <span class="italic" x-text="`"${phrase}"`"></span>
-                                            </div>
-                                        </template>
+                                <div x-show="cluster.representative_phrases && cluster.representative_phrases.length > 0">
+                                    <template x-for="phrase in cluster.representative_phrases.slice(0, 3)" :key="phrase">
+                                        <div class="bg-gray-50 p-2 rounded text-xs text-gray-700 mb-1 border-l-2 border-blue-300">
+                                            <span class="italic" x-text="`\"${phrase}\"`"></span>
+                                        </div>
                                     </template>
-                                    <span x-show="(!cluster.articles || cluster.articles.length === 0) && (!cluster.representative_phrases || cluster.representative_phrases.length === 0)">No sample phrases available</span>
+                                </div>
+                                <div x-show="!cluster.representative_phrases || cluster.representative_phrases.length === 0">
+                                    <template x-if="cluster.articles && cluster.articles.length > 0">
+                                        <div>
+                                            <template x-for="phrase in getFirstBiasPhrasesFromCluster(cluster)" :key="phrase">
+                                                <div class="bg-gray-50 p-2 rounded text-xs text-gray-700 mb-1 border-l-2 border-yellow-300">
+                                                    <span class="italic" x-text="`\"${phrase}\"`"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <div x-show="(!cluster.articles || cluster.articles.length === 0) && (!cluster.representative_phrases || cluster.representative_phrases.length === 0)" class="text-xs text-gray-500 italic">
+                                        No sample phrases available
+                                    </div>
                                 </div>
                             </div>
                         </div>
