@@ -368,7 +368,7 @@
                                     <div class="space-y-2">
                                         <template x-for="(score, dimension) in (article.analysis?.dimension_scores || article.bias_profile || {})" :key="dimension">
                                             <div class="flex justify-between items-center text-xs">
-                                                <span class="text-gray-600 truncate" x-text="formatDimensionName(dimension).substring(0, 12)"></span>
+                                                <span class="text-gray-600" x-text="formatDimensionName(dimension)"></span>
                                                 <span class="font-medium" :class="getDimensionScoreColor(score)" x-text="Math.round(score)"></span>
                                             </div>
                                         </template>
@@ -378,7 +378,7 @@
                                     <div x-show="article.analysis?.confidence_intervals" class="mt-2 text-xs text-gray-500">
                                         <span class="font-medium">Confidence: </span>
                                         <template x-for="(interval, dim) in (article.analysis?.confidence_intervals || {})" :key="dim">
-                                            <span class="mr-1" x-text="`${formatDimensionName(dim).substring(0,3)}: (${interval[0]}-${interval[1]})`"></span>
+                                            <span class="mr-1 text-xs" x-text="`${formatDimensionName(dim)}: (${interval[0]}-${interval[1]})`"></span>
                                         </template>
                                     </div>
 
