@@ -1,5 +1,6 @@
 # Use Python 3.11 slim image for smaller size and security
-FROM python:3.11-slim
+# Force amd64 architecture for Google Cloud compatibility
+FROM --platform=linux/amd64 python:3.11-slim
 
 # Set working directory
 WORKDIR /app

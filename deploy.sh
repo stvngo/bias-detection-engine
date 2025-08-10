@@ -33,9 +33,9 @@ if [ -z "$PROJECT_ID" ]; then
     exit 1
 fi
 
-# Build and push Docker image
-echo -e "${YELLOW}🔨 Building Docker image...${NC}"
-docker build -t $IMAGE_NAME .
+# Build and push Docker image with correct platform
+echo -e "${YELLOW}🔨 Building Docker image for amd64/linux platform...${NC}"
+docker build --platform linux/amd64 -t $IMAGE_NAME .
 
 echo -e "${YELLOW}📤 Pushing image to Google Container Registry...${NC}"
 docker push $IMAGE_NAME

@@ -1,7 +1,7 @@
 steps:
-  # Build the container image
+  # Build the container image for amd64/linux platform
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/bias-lab-api:$COMMIT_SHA', '.']
+    args: ['build', '--platform', 'linux/amd64', '-t', 'gcr.io/$PROJECT_ID/bias-lab-api:$COMMIT_SHA', '.']
     
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
