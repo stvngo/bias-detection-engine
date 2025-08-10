@@ -28,7 +28,7 @@ steps:
       - '--max-instances'
       - '10'
       - '--set-env-vars'
-      - 'OPENAI_API_KEY=$_OPENAI_API_KEY,OPENAI_MODEL=gpt-3.5-turbo,OPENAI_MAX_TOKENS=1400,OPENAI_TEMPERATURE=0.3,LOG_LEVEL=warning'
+      - 'OPENAI_API_KEY=$_OPENAI_API_KEY,OPENAI_MODEL=gpt-3.5-turbo,OPENAI_MAX_TOKENS=1400,OPENAI_TEMPERATURE=0.3,LOG_LEVEL=warning,PORT=8080'
 
 # Store images in Google Container Registry
 images:
