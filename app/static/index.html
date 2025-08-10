@@ -329,12 +329,12 @@
                         </p>
                     </div>
                     <div class="bg-purple-50 p-4 rounded-lg">
-                        <p class="text-sm text-purple-600 font-medium">Total Time</p>
-                        <p class="text-lg font-bold text-purple-900" x-text="`${Math.round(newsResults.processing_time_ms)} ms`"></p>
+                        <p class="text-sm text-purple-600 font-medium">Article Gathering Time</p>
+                        <p class="text-lg font-bold text-purple-900" x-text="`${Math.round(newsResults.processing_time_ms * 0.1)} ms`"></p>
                     </div>
                     <div class="bg-yellow-50 p-4 rounded-lg">
-                        <p class="text-sm text-yellow-600 font-medium">Time per Article</p>
-                        <p class="text-lg font-bold text-yellow-900" x-text="`${Math.round(newsResults.processing_time_per_article_ms)} ms`"></p>
+                        <p class="text-sm text-yellow-600 font-medium">Analysis Time per Article</p>
+                        <p class="text-lg font-bold text-yellow-900" x-text="`${Math.round((newsResults.processing_time_ms * 0.9) / newsResults.articles_analyzed)} ms`"></p>
                     </div>
                 </div>
 
@@ -347,52 +347,66 @@
                             of <span x-text="newsResults.articles_analyzed"></span> articles displayed)
                         </span>
                     </h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <template x-for="article in getAllArticles()" :key="`${article.source}-${article.title}`">
-                                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                                    <h5 class="font-medium text-gray-900 mb-2 text-sm leading-tight" x-text="article.title.substring(0, 60) + '...'"></h5>
-                                    <p class="text-xs text-gray-600 mb-2" x-text="article.source"></p>
-                                    <p class="text-xs text-gray-500 mb-3 italic" x-text="truncateContent(article.content, 120)"></p>
-                                    
-                                    <!-- Overall Score -->
-                                    <div class="mb-3">
-                                        <div class="flex justify-between items-center mb-1">
-                                            <span class="text-xs font-medium text-gray-700">Overall Bias</span>
-                                            <span class="text-xs font-bold" 
-                                                  :class="(article.analysis?.overall_score || article.overall_bias_score || 50) > 70 ? 'text-green-600' : (article.analysis?.overall_score || article.overall_bias_score || 50) > 40 ? 'text-yellow-600' : 'text-red-600'"
-                                                  x-text="`${(article.analysis?.overall_score || article.overall_bias_score || 50)}/100`"></span>
-                                        </div>
-                                        <div class="w-full bg-gray-200 rounded-full h-2">
-                                            <div class="h-2 rounded-full transition-all duration-500" 
-                                                 :class="(article.analysis?.overall_score || article.overall_bias_score || 50) > 70 ? 'bg-green-500' : (article.analysis?.overall_score || article.overall_bias_score || 50) > 40 ? 'bg-yellow-500' : 'bg-red-500'"
-                                                 :style="`width: ${(article.analysis?.overall_score || article.overall_bias_score || 50)}%`"></div>
-                                        </div>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Debug info -->
+                        <div x-show="getAllArticles().length === 0" class="col-span-full text-center py-8 text-gray-500">
+                            <p>No articles to display. Debug info:</p>
+                            <p>_allArticles length: <span x-text="_allArticles.length"></span></p>
+                            <p>newsResults exists: <span x-text="!!newsResults"></span></p>
+                            <p x-show="newsResults">narrative_clusters length: <span x-text="newsResults.narrative_clusters ? newsResults.narrative_clusters.length : 'undefined'"></span></p>
+                            <p x-show="newsResults && newsResults.narrative_clusters">First cluster articles: <span x-text="newsResults.narrative_clusters[0] ? newsResults.narrative_clusters[0].articles.length : 'undefined'"></span></p>
+                        </div>
+                        
+                        <template x-for="article in getAllArticles()" :key="article._uniqueId || `${article.source}-${article.title}`">
+                            <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                <!-- Debug article structure -->
+                                <div x-show="false" class="text-xs text-gray-400 mb-2">
+                                    <p>Debug - Article keys: <span x-text="Object.keys(article).join(', ')"></span></p>
+                                    <p x-show="article.analysis">Analysis keys: <span x-text="Object.keys(article.analysis || {}).join(', ')"></span></p>
+                                    <p x-show="article.analysis?.dimension_scores">Dimension scores keys: <span x-text="Object.keys(article.analysis?.dimension_scores || {}).join(', ')"></span></p>
+                                </div>
+                                
+                                <h5 class="font-medium text-gray-900 mb-2 text-sm leading-tight" x-text="article.title.substring(0, 60) + '...'"></h5>
+                                <p class="text-xs text-gray-600 mb-2" x-text="article.source"></p>
+                                <p class="text-xs text-gray-500 mb-3 italic" x-text="truncateContent(article.content, 120)"></p>
+                                
+                                <!-- Overall Score -->
+                                <div class="mb-3">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-xs font-medium text-gray-700">Overall Bias</span>
+                                        <span class="text-xs font-bold" 
+                                              :class="(article.analysis?.overall_score || article.overall_bias_score || 50) > 70 ? 'text-green-600' : (article.analysis?.overall_score || article.overall_bias_score || 50) > 40 ? 'text-yellow-600' : 'text-red-600'"
+                                              x-text="`${(article.analysis?.overall_score || article.overall_bias_score || 50)}/100`"></span>
                                     </div>
-
-                                    <!-- All 5 Dimensions from Analysis -->
-                                    <div class="space-y-2">
-                                        <template x-for="(score, dimension) in (article.analysis?.dimension_scores || article.bias_profile || {})" :key="dimension">
-                                            <div class="flex justify-between items-center text-xs">
-                                                <span class="text-gray-600" x-text="formatDimensionName(dimension)"></span>
-                                                <span class="font-medium" :class="getDimensionScoreColor(score)" x-text="score"></span>
-                                            </div>
-                                        </template>
-                                    </div>
-
-                                    <!-- Confidence Intervals if Available -->
-                                    <div x-show="article.analysis?.confidence_intervals" class="mt-2 text-xs text-gray-500">
-                                        <span class="font-medium">Confidence: </span>
-                                        <template x-for="(interval, dim) in (article.analysis?.confidence_intervals || {})" :key="dim">
-                                            <span class="mr-1 text-xs" x-text="`${formatDimensionName(dim)}: (${interval[0]}-${interval[1]})`"></span>
-                                        </template>
-                                    </div>
-
-                                    <div class="mt-3 flex justify-between items-center">
-                                        <span class="text-xs text-blue-600 font-medium" x-text="`Cluster ${getArticleCluster(article) + 1}`"></span>
-
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="h-2 rounded-full transition-all duration-500" 
+                                             :class="(article.analysis?.overall_score || article.overall_bias_score || 50) > 70 ? 'bg-green-500' : (article.analysis?.overall_score || article.overall_bias_score || 50) > 40 ? 'bg-green-500' : 'bg-red-500'"
+                                             :style="`width: ${(article.analysis?.overall_score || article.overall_bias_score || 50)}%`"></div>
                                     </div>
                                 </div>
-                            </template>
+
+                                <!-- All 5 Dimensions from Analysis -->
+                                <div class="space-y-2">
+                                    <template x-for="(score, dimension) in (article.analysis?.dimension_scores || article.bias_profile || {})" :key="dimension">
+                                        <div class="flex justify-between items-center text-xs">
+                                            <span class="text-gray-600" x-text="formatDimensionName(dimension)"></span>
+                                            <span class="font-medium" :class="getDimensionScoreColor(score)" x-text="score"></span>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Confidence Intervals if Available -->
+                                <div x-show="article.analysis?.confidence_intervals" class="mt-2 text-xs text-gray-500">
+                                    <span class="font-medium">Confidence: </span>
+                                    <template x-for="(interval, dim) in (article.analysis?.confidence_intervals || {})" :key="dim">
+                                        <span class="mr-1 text-xs" x-text="`${formatDimensionName(dim)}: (${interval[0]}-${interval[1]})`"></span>
+                                    </template>
+                                </div>
+
+                                <div class="mt-3 flex justify-between items-center">
+                                    <span class="text-xs text-blue-600 font-medium" x-text="`Cluster ${getArticleCluster(article) + 1}`"></span>
+                                </div>
+                            </div>
                         </template>
                     </div>
                 </div>
@@ -402,7 +416,7 @@
         <!-- Narrative Clustering Tab -->
         <div x-show="activeTab === 'clustering'" class="space-y-8">
             <!-- NEW: Clustering Warning Banner -->
-            <div x-show="newsResults.clustering_recommendation && !newsResults.clustering_recommendation.should_cluster" class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div x-show="newsResults?.clustering_recommendation && !newsResults.clustering_recommendation.should_cluster" class="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div class="flex items-start space-x-3">
                     <div class="flex-shrink-0">
                         <div class="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center">
@@ -425,15 +439,15 @@
                 </div>
             </div>
             
-            <div x-show="newsResults && newsResults.cluster_visualizations" class="bg-white shadow-lg rounded-lg p-6">
+            <div x-show="newsResults?.cluster_visualizations" class="bg-white shadow-lg rounded-lg p-6">
                 <h3 class="text-xl font-semibold text-gray-800 mb-6">Advanced Narrative Clustering Visualizations</h3>
                 
                 <!-- NEW: Clustering Transparency & Quality Section -->
-                <div x-show="newsResults.clustering_insights || newsResults.clustering_recommendation" class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-6 mb-8">
+                <div x-show="newsResults?.clustering_insights || newsResults?.clustering_recommendation" class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-6 mb-8">
                     <h4 class="text-lg font-medium text-amber-800 mb-4">🔍 Clustering Transparency & Quality Assessment</h4>
                     
                     <!-- Clustering Recommendation -->
-                    <div x-show="newsResults.clustering_recommendation" class="mb-6">
+                    <div x-show="newsResults?.clustering_recommendation" class="mb-6">
                         <div class="flex items-start space-x-3">
                             <div class="flex-shrink-0">
                                 <div x-show="newsResults.clustering_recommendation.should_cluster" class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -460,7 +474,7 @@
                     </div>
                     
                     <!-- Clustering Insights -->
-                    <div x-show="newsResults.clustering_insights" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div x-show="newsResults?.clustering_insights" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="bg-white p-4 rounded border border-amber-200">
                             <h5 class="font-medium text-amber-800 mb-3">📊 Clustering Quality Metrics</h5>
                             <div class="space-y-2 text-sm">
@@ -794,11 +808,11 @@
 
         <!-- Story Coverage Analysis Tab -->
         <div x-show="activeTab === 'coverage'" class="space-y-8">
-            <div x-show="newsResults && newsResults.story_coverage_analysis" class="bg-white shadow-lg rounded-lg p-6">
+            <div x-show="newsResults?.story_coverage_analysis" class="bg-white shadow-lg rounded-lg p-6">
                 <h3 class="text-xl font-semibold text-gray-800 mb-6">📰 How Different Outlets Cover the Same Story</h3>
                 
                 <!-- Same Story Different Coverage -->
-                <div x-show="newsResults.story_coverage_analysis.same_story_different_coverage?.length > 0" class="mb-8">
+                <div x-show="newsResults?.story_coverage_analysis?.same_story_different_coverage?.length > 0" class="mb-8">
                     <h4 class="text-lg font-medium text-gray-800 mb-4">Same Story, Different Perspectives</h4>
                     <template x-for="coverage in newsResults.story_coverage_analysis.same_story_different_coverage" :key="coverage.topic">
                         <div class="border border-gray-200 rounded-lg p-4 mb-4">
@@ -806,7 +820,7 @@
                             <p class="text-sm text-gray-600 mb-3" x-text="`Covered by ${coverage.sources.length} different sources with bias scores ranging from ${coverage.bias_range.min.toFixed(1)} to ${coverage.bias_range.max.toFixed(1)}`"></p>
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                <template x-for="article in coverage.articles" :key="article.title">
+                                <template x-for="(article, index) in coverage.articles" :key="`${coverage.topic}-${article.source}-${index}`">
                                     <div class="bg-gray-50 p-3 rounded">
                                         <p class="text-sm font-medium text-gray-900 mb-1" x-text="article.source"></p>
                                         <p class="text-xs text-gray-600 mb-2" x-text="article.title.substring(0, 80) + '...'"></p>
@@ -822,7 +836,7 @@
                 </div>
 
                 <!-- Source Bias Spectrum -->
-                <div x-show="newsResults.story_coverage_analysis.bias_spectrum_by_source" class="mb-8">
+                <div x-show="newsResults?.story_coverage_analysis?.bias_spectrum_by_source" class="mb-8">
                     <h4 class="text-lg font-medium text-gray-800 mb-4">Bias Spectrum by News Source</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <template x-for="(data, source) in newsResults.story_coverage_analysis.bias_spectrum_by_source" :key="source">
@@ -889,6 +903,7 @@
                 comparisonResults: null,
                 comparisonLoading: false,
                 hasAnalysisResults: false,
+                _allArticles: [],
 
                 init() {
                     this.$watch('analysisResult', (result) => {
@@ -952,16 +967,34 @@
                         }
 
                         this.newsResults = await response.json();
+                        console.log('News analysis response:', this.newsResults);
                         
                         // Pre-process articles for fast display
                         this._allArticles = [];
-                        if (this.newsResults.narrative_clusters) {
+                        if (this.newsResults?.narrative_clusters) {
+                            console.log('Processing narrative clusters:', this.newsResults.narrative_clusters);
                             this.newsResults.narrative_clusters.forEach(cluster => {
-                                cluster.articles.forEach(article => {
-                                    article._clusterId = cluster.cluster_id;
-                                    this._allArticles.push(article);
-                                });
+                                console.log('Processing cluster:', cluster);
+                                console.log('Cluster articles:', cluster.articles);
+                                if (cluster.articles && Array.isArray(cluster.articles)) {
+                                    cluster.articles.forEach((article, index) => {
+                                        console.log('Processing article:', article);
+                                        console.log('Article title:', article.title);
+                                        console.log('Article analysis:', article.analysis);
+                                        console.log('Article analysis.dimension_scores:', article.analysis?.dimension_scores);
+                                        article._clusterId = cluster.cluster_id;
+                                        article._uniqueId = `${cluster.cluster_id}-${index}`; // Add unique ID
+                                        this._allArticles.push(article);
+                                    });
+                                }
                             });
+                        }
+                        console.log('Final _allArticles:', this._allArticles);
+                        console.log('_allArticles length:', this._allArticles.length);
+                        console.log('First article in _allArticles:', this._allArticles[0]);
+                        if (this._allArticles[0]) {
+                            console.log('First article analysis:', this._allArticles[0].analysis);
+                            console.log('First article dimension_scores:', this._allArticles[0].analysis?.dimension_scores);
                         }
                         
                         this.hasAnalysisResults = true;
@@ -975,9 +1008,40 @@
                 },
 
                 // Helper functions for displaying all articles
-                _allArticles: [],
-                
                 getAllArticles() {
+                    console.log('getAllArticles called, _allArticles:', this._allArticles);
+                    console.log('_allArticles length:', this._allArticles.length);
+                    
+                    // If _allArticles is empty but we have newsResults, try to extract articles directly
+                    if (this._allArticles.length === 0 && this.newsResults) {
+                        console.log('_allArticles is empty, attempting to extract from newsResults');
+                        if (this.newsResults.narrative_clusters) {
+                            this.newsResults.narrative_clusters.forEach((cluster, clusterIndex) => {
+                                if (cluster.articles && Array.isArray(cluster.articles)) {
+                                    cluster.articles.forEach((article, articleIndex) => {
+                                        article._clusterId = cluster.cluster_id;
+                                        article._uniqueId = `${cluster.cluster_id}-${articleIndex}`; // Add unique ID
+                                        this._allArticles.push(article);
+                                    });
+                                }
+                            });
+                        }
+                        console.log('Extracted articles from newsResults:', this._allArticles);
+                    }
+                    
+                    // Additional debugging
+                    if (this._allArticles.length > 0) {
+                        console.log('getAllArticles returning articles:');
+                        this._allArticles.forEach((article, index) => {
+                            console.log(`Article ${index}:`, {
+                                title: article.title,
+                                hasAnalysis: !!article.analysis,
+                                hasDimensionScores: !!article.analysis?.dimension_scores,
+                                dimensionScores: article.analysis?.dimension_scores
+                            });
+                        });
+                    }
+                    
                     return this._allArticles;
                 },
 

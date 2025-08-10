@@ -59,7 +59,7 @@ case "${1:-cloud-run}" in
             --memory 2Gi \
             --cpu 1 \
             --max-instances 10 \
-            --set-env-vars "PORT=8080,OPENAI_MODEL=gpt-3.5-turbo,OPENAI_MAX_TOKENS=1400,OPENAI_TEMPERATURE=0.3,LOG_LEVEL=warning" \
+            --set-env-vars "OPENAI_MODEL=gpt-3.5-turbo,OPENAI_MAX_TOKENS=1400,OPENAI_TEMPERATURE=0.3,LOG_LEVEL=warning" \
             --quiet
         
         echo -e "${GREEN}✅ Cloud Run deployment complete!${NC}"

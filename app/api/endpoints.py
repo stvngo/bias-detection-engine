@@ -273,19 +273,38 @@ async def analyze_current_news(request: NewsAnalysisRequest):
 
         total_processing_time = (time.time() - start_time) * 1000
         
-        # Convert clusters to response format
-        cluster_outputs = [
-            NarrativeClusterOutput(
-                cluster_id=cluster['cluster_id'],
-                size=cluster['size'],
-                dominant_themes=cluster['dominant_themes'],
-                bias_profile=cluster['bias_profile'],
-                representative_phrases=cluster['representative_phrases'],
-                articles=cluster['articles'],
-                clustering_explanation=cluster.get('clustering_explanation')  # Include explanation
+        # Convert clusters to response format, ensuring analysis data is preserved
+        cluster_outputs = []
+        for cluster in cluster_viz_data['clusters']:
+            # Get the original articles with full analysis data for this cluster
+            cluster_articles = []
+            for cluster_article in cluster['articles']:
+                # Find the corresponding article with full analysis data
+                original_article = next(
+                    (article for article in articles_with_analysis 
+                     if article['title'] == cluster_article['title'] and 
+                        article['source'] == cluster_article['source']), 
+                    None
+                )
+                
+                if original_article:
+                    # Use the original article with full analysis data
+                    cluster_articles.append(original_article)
+                else:
+                    # Fallback to the serialized article if original not found
+                    cluster_articles.append(cluster_article)
+            
+            cluster_outputs.append(
+                NarrativeClusterOutput(
+                    cluster_id=cluster['cluster_id'],
+                    size=cluster['size'],
+                    dominant_themes=cluster['dominant_themes'],
+                    bias_profile=cluster['bias_profile'],
+                    representative_phrases=cluster['representative_phrases'],
+                    articles=cluster_articles,  # Use articles with full analysis data
+                    clustering_explanation=cluster.get('clustering_explanation')
+                )
             )
-            for cluster in cluster_viz_data['clusters']
-        ]
 
         # Store results for auto-comparison
         global last_analysis_results
