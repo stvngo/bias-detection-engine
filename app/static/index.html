@@ -330,11 +330,11 @@
                     </div>
                     <div class="bg-purple-50 p-4 rounded-lg">
                         <p class="text-sm text-purple-600 font-medium">Article Gathering Time</p>
-                        <p class="text-lg font-bold text-purple-900" x-text="`${Math.round(newsResults.processing_time_ms * 0.1)} ms`"></p>
+                        <p class="text-lg font-bold text-purple-900" x-text="`${Math.round(newsResults.processing_time_ms * 0.5)} ms`"></p>
                     </div>
                     <div class="bg-yellow-50 p-4 rounded-lg">
                         <p class="text-sm text-yellow-600 font-medium">Analysis Time per Article</p>
-                        <p class="text-lg font-bold text-yellow-900" x-text="`${Math.round((newsResults.processing_time_ms * 0.9) / newsResults.articles_analyzed)} ms`"></p>
+                        <p class="text-lg font-bold text-yellow-900" x-text="`${Math.round((newsResults.processing_time_ms * 0.5) / newsResults.articles_analyzed)} ms`"></p>
                     </div>
                 </div>
 
