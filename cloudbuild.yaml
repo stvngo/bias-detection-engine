@@ -1,0 +1,42 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/bias-lab-api:$COMMIT_SHA', '.']
+    
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/bias-lab-api:$COMMIT_SHA']
+    
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bias-lab-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/bias-lab-api:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+      - '--set-env-vars'
+      - 'OPENAI_API_KEY=$_OPENAI_API_KEY,OPENAI_MODEL=gpt-3.5-turbo,OPENAI_MAX_TOKENS=1400,OPENAI_TEMPERATURE=0.3,LOG_LEVEL=warning'
+
+# Store images in Google Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/bias-lab-api:$COMMIT_SHA'
+
+# Available substitution variables
+substitutions:
+  _OPENAI_API_KEY: 'your-openai-api-key-here'
+
+# Timeout for the entire build
+timeout: '1200s'

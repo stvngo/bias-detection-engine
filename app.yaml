@@ -1,0 +1,37 @@
+runtime: python311
+service: bias-lab-api
+
+env_variables:
+  OPENAI_API_KEY: "YOUR_OPENAI_API_KEY_HERE"
+  OPENAI_MODEL: "gpt-3.5-turbo"
+  OPENAI_MAX_TOKENS: "1400"
+  OPENAI_TEMPERATURE: "0.3"
+  LOG_LEVEL: "warning"
+
+automatic_scaling:
+  target_cpu_utilization: 0.65
+  min_instances: 1
+  max_instances: 10
+  target_throughput_utilization: 0.6
+
+resources:
+  cpu: 1
+  memory_gb: 2
+  disk_size_gb: 10
+
+handlers:
+  - url: /static
+    static_dir: app/static
+    secure: always
+
+  - url: /.*
+    script: auto
+    secure: always
+
+inbound_services:
+  - warmup
+
+instance_class: F1
+
+vpc_access_connector:
+  name: projects/PROJECT_ID/locations/REGION/connectors/CONNECTOR_NAME

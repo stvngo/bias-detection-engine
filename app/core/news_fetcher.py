@@ -40,7 +40,7 @@ class NewsAPIFetcher:
         self.base_url = "https://newsapi.org/v2"
         logger.info("NewsAPI fetcher initialized", has_api_key=bool(self.api_key))
         
-    async def fetch_trending_topic(self, query: str = None, sources: str = None) -> List[NewsArticle]:
+    async def fetch_trending_topic(self, query: str = None, sources: str = None, max_articles: int = 20) -> List[NewsArticle]:
         """Fetch articles about a trending/controversial topic"""
         if not self.api_key:
             logger.error("No NewsAPI key provided - cannot fetch articles")
@@ -50,13 +50,13 @@ class NewsAPIFetcher:
         if not query:
             query = await self._get_current_controversial_topic()
             
-        logger.info(f"Fetching REAL articles for query: '{query}' using NewsAPI")
+        logger.info(f"Fetching REAL articles for query: '{query}' using NewsAPI (max: {max_articles})")
         
         url = f"{self.base_url}/everything"
         params = {
             'q': query,
             'sortBy': 'publishedAt',  # Get latest articles
-            'pageSize': 100,  # Get more to filter from
+            'pageSize': min(100, max_articles * 2),  # Get more to filter from, but not excessive
             'language': 'en',
             'from': (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'),  # Last week
             'apiKey': self.api_key
@@ -100,10 +100,10 @@ class NewsAPIFetcher:
                             articles.append(article)
                             
                             # Stop when we have enough articles
-                            if len(articles) >= 20:
+                            if len(articles) >= max_articles:
                                 break
                     
-                    logger.info(f"Filtered to {len(articles)} articles with valid content for query: '{query}'")
+                    logger.info(f"Filtered to {len(articles)} articles with valid content for query: '{query}' (requested: {max_articles})")
                     return articles
                     
         except Exception as e:

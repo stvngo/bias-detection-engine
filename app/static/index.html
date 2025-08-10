@@ -78,9 +78,9 @@
     <div class="bg-white border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="py-12 text-center">
-                <h1 class="text-5xl font-bold text-gray-800 mb-4">
-                    🎯 The Bias Lab
-                </h1>
+                <div class="flex justify-center items-center mb-4">
+                    <img src="/static/biaslab.png" alt="The Bias Lab Logo" class="h-20 w-auto">
+                </div>
                 <p class="text-xl text-gray-600 mb-6">
                     Advanced AI-Powered Media Bias Detection with Real-Time News Analysis
                 </p>
@@ -91,7 +91,7 @@
                     </div>
                     <div class="flex items-center">
                         <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                        Narrative Clustering (PCA & t-SNE)
+                        Narrative Clustering
                     </div>
                     <div class="flex items-center">
                         <div class="w-3 h-3 bg-purple-500 rounded-full mr-2"></div>
@@ -195,7 +195,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <!-- Overall Score & Detailed Dimensions -->
                     <div>
-                        <h3 class="text-xl font-medium text-gray-700 mb-2">Overall Bias Score: <span class="font-bold" :class="getOverallScoreColor(analysisResult.overall_score)" x-text="`${analysisResult.overall_score}/100`"></span></h3>
+                        <h3 class="text-xl font-medium text-gray-700 mb-2">Overall Bias Score: <span class="font-bold" :class="getOverallScoreColor(analysisResult.overall_score)" x-text="`${analysisResult.overall_score.toFixed(1)}/100`"></span></h3>
                         <p class="text-gray-600 mb-4" x-text="getOverallScoreDescription(analysisResult.overall_score)"></p>
 
                         <div class="bias-meter mb-6">
@@ -244,7 +244,7 @@
                                         <p class="text-gray-600 text-sm" x-text="phrase.explanation"></p>
                                         <div class="flex items-center mt-2 space-x-4">
                                             <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded" x-text="`${phrase.confidence}% confidence`"></span>
-                                            <span class="text-xs text-gray-500" x-text="Object.keys(phrase.score_impact || {}).map(dim => `${formatDimensionName(dim)}: ${phrase.score_impact[dim] > 0 ? '+' : ''}${phrase.score_impact[dim]}`).join(', ')"></span>
+                                            <span class="text-xs text-gray-500" x-text="Object.keys(phrase.score_impact || {}).map(dim => `${formatDimensionName(dim)}: ${phrase.score_impact[dim] > 0 ? '+' : ''}${phrase.score_impact[dim].toFixed(1)}`).join(', ')"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -275,6 +275,12 @@
             <div class="bg-white shadow-lg rounded-lg p-6">
                 <h2 class="text-2xl font-semibold text-gray-800 mb-4">Real-Time News Bias Analysis</h2>
                 <p class="text-gray-600 mb-6">Analyze current news articles from multiple sources to detect bias patterns. Enter a specific topic for targeted analysis.</p>
+                <div class="bg-green-50 p-3 rounded-lg mb-4 border border-green-200">
+                    <div class="flex items-center text-xs text-green-700">
+                        <span class="mr-2">⚡</span>
+                        <span><strong>Optimized Processing:</strong> Uses concise AI analysis (300 tokens) for fast, accurate bias scoring with confidence intervals</span>
+                    </div>
+                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
@@ -286,7 +292,7 @@
                         <select id="maxArticles" x-model="newsAnalysis.max_articles" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="10">10 articles</option>
                             <option value="15">15 articles</option>
-                            <option value="20">20 articles</option>
+                            <option value="20" selected>20 articles</option>
                         </select>
                     </div>
                 </div>
@@ -342,8 +348,7 @@
                         </span>
                     </h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <template x-for="cluster in newsResults.narrative_clusters" :key="cluster.cluster_id">
-                            <template x-for="article in cluster.articles" :key="article.title">
+                        <template x-for="article in getAllArticles()" :key="`${article.source}-${article.title}`">
                                 <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                                     <h5 class="font-medium text-gray-900 mb-2 text-sm leading-tight" x-text="article.title.substring(0, 60) + '...'"></h5>
                                     <p class="text-xs text-gray-600 mb-2" x-text="article.source"></p>
@@ -355,12 +360,12 @@
                                             <span class="text-xs font-medium text-gray-700">Overall Bias</span>
                                             <span class="text-xs font-bold" 
                                                   :class="(article.analysis?.overall_score || article.overall_bias_score || 50) > 70 ? 'text-green-600' : (article.analysis?.overall_score || article.overall_bias_score || 50) > 40 ? 'text-yellow-600' : 'text-red-600'"
-                                                  x-text="`${Math.round(article.analysis?.overall_score || article.overall_bias_score || 50)}/100`"></span>
+                                                  x-text="`${(article.analysis?.overall_score || article.overall_bias_score || 50)}/100`"></span>
                                         </div>
                                         <div class="w-full bg-gray-200 rounded-full h-2">
                                             <div class="h-2 rounded-full transition-all duration-500" 
                                                  :class="(article.analysis?.overall_score || article.overall_bias_score || 50) > 70 ? 'bg-green-500' : (article.analysis?.overall_score || article.overall_bias_score || 50) > 40 ? 'bg-yellow-500' : 'bg-red-500'"
-                                                 :style="`width: ${Math.round(article.analysis?.overall_score || article.overall_bias_score || 50)}%`"></div>
+                                                 :style="`width: ${(article.analysis?.overall_score || article.overall_bias_score || 50)}%`"></div>
                                         </div>
                                     </div>
 
@@ -369,7 +374,7 @@
                                         <template x-for="(score, dimension) in (article.analysis?.dimension_scores || article.bias_profile || {})" :key="dimension">
                                             <div class="flex justify-between items-center text-xs">
                                                 <span class="text-gray-600" x-text="formatDimensionName(dimension)"></span>
-                                                <span class="font-medium" :class="getDimensionScoreColor(score)" x-text="Math.round(score)"></span>
+                                                <span class="font-medium" :class="getDimensionScoreColor(score)" x-text="score"></span>
                                             </div>
                                         </template>
                                     </div>
@@ -383,8 +388,8 @@
                                     </div>
 
                                     <div class="mt-3 flex justify-between items-center">
-                                        <span class="text-xs text-blue-600 font-medium" x-text="`Cluster ${cluster.cluster_id + 1}`"></span>
-                                        <span x-show="article.analysis?.processing_time_ms" class="text-xs text-gray-400" x-text="`${Math.round(article.analysis.processing_time_ms)}ms`"></span>
+                                        <span class="text-xs text-blue-600 font-medium" x-text="`Cluster ${getArticleCluster(article) + 1}`"></span>
+
                                     </div>
                                 </div>
                             </template>
@@ -396,8 +401,140 @@
 
         <!-- Narrative Clustering Tab -->
         <div x-show="activeTab === 'clustering'" class="space-y-8">
+            <!-- NEW: Clustering Warning Banner -->
+            <div x-show="newsResults.clustering_recommendation && !newsResults.clustering_recommendation.should_cluster" class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-start space-x-3">
+                    <div class="flex-shrink-0">
+                        <div class="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center">
+                            <span class="text-red-600 text-sm">⚠️</span>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-medium text-red-800 mb-2">Clustering Not Recommended</h3>
+                        <p class="text-red-700 mb-2" x-text="newsResults.clustering_recommendation.reasoning"></p>
+                        <p class="text-red-600 text-sm"><strong>Recommendation:</strong> <span x-text="newsResults.clustering_recommendation.recommended_approach"></span></p>
+                        <div x-show="newsResults.clustering_recommendation.warnings.length > 0" class="mt-2">
+                            <p class="text-red-600 text-sm font-medium">Key Concerns:</p>
+                            <ul class="list-disc list-inside text-red-600 text-sm mt-1 space-y-1">
+                                <template x-for="warning in newsResults.clustering_recommendation.warnings" :key="warning">
+                                    <li x-text="warning"></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div x-show="newsResults && newsResults.cluster_visualizations" class="bg-white shadow-lg rounded-lg p-6">
                 <h3 class="text-xl font-semibold text-gray-800 mb-6">Advanced Narrative Clustering Visualizations</h3>
+                
+                <!-- NEW: Clustering Transparency & Quality Section -->
+                <div x-show="newsResults.clustering_insights || newsResults.clustering_recommendation" class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-6 mb-8">
+                    <h4 class="text-lg font-medium text-amber-800 mb-4">🔍 Clustering Transparency & Quality Assessment</h4>
+                    
+                    <!-- Clustering Recommendation -->
+                    <div x-show="newsResults.clustering_recommendation" class="mb-6">
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0">
+                                <div x-show="newsResults.clustering_recommendation.should_cluster" class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                    <span class="text-green-600 text-lg">✅</span>
+                                </div>
+                                <div x-show="!newsResults.clustering_recommendation.should_cluster" class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                                    <span class="text-red-600 text-lg">⚠️</span>
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <h5 class="font-medium text-amber-800 mb-2" x-text="newsResults.clustering_recommendation.should_cluster ? 'Clustering Recommended' : 'Clustering Not Recommended'"></h5>
+                                <p class="text-sm text-amber-700 mb-2" x-text="newsResults.clustering_recommendation.reasoning"></p>
+                                <p class="text-sm text-amber-600 mb-2"><span class="font-medium">Approach:</span> <span x-text="newsResults.clustering_recommendation.recommended_approach"></span></p>
+                                <div x-show="newsResults.clustering_recommendation.warnings.length > 0" class="mt-2">
+                                    <p class="text-sm font-medium text-amber-700 mb-1">Warnings:</p>
+                                    <ul class="list-disc list-inside text-sm text-amber-600 space-y-1">
+                                        <template x-for="warning in newsResults.clustering_recommendation.warnings" :key="warning">
+                                            <li x-text="warning"></li>
+                                        </template>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Clustering Insights -->
+                    <div x-show="newsResults.clustering_insights" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-4 rounded border border-amber-200">
+                            <h5 class="font-medium text-amber-800 mb-3">📊 Clustering Quality Metrics</h5>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-amber-700">Total Articles:</span>
+                                    <span class="font-medium" x-text="newsResults.clustering_insights.total_articles"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-amber-700">Clusters Created:</span>
+                                    <span class="font-medium" x-text="newsResults.clustering_insights.total_clusters"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-amber-700">Quality Level:</span>
+                                    <span class="font-medium capitalize" x-text="newsResults.clustering_insights.clustering_quality.replace('_', ' ')"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-amber-700">Size Balance:</span>
+                                    <span class="font-medium capitalize" x-text="newsResults.clustering_insights.size_balance.replace('_', ' ')"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-4 rounded border border-amber-200">
+                            <h5 class="font-medium text-amber-800 mb-3">💡 Recommendations & Insights</h5>
+                            <div class="space-y-2">
+                                <template x-for="recommendation in newsResults.clustering_insights.recommendations" :key="recommendation">
+                                    <div class="flex items-start space-x-2">
+                                        <span class="text-amber-500 text-sm">•</span>
+                                        <p class="text-sm text-amber-700" x-text="recommendation"></p>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- NEW: Overall Clustering Summary -->
+                <div x-show="newsResults.clustering_insights" class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 mb-8">
+                    <h4 class="text-lg font-medium text-blue-800 mb-4">📈 Overall Clustering Summary</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-blue-600 mb-2" x-text="newsResults.clustering_insights.total_clusters"></div>
+                            <div class="text-sm text-blue-700">Clusters Created</div>
+                            <div class="text-xs text-blue-600 mt-1" x-text="newsResults.clustering_insights.clustering_quality.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())"></div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-indigo-600 mb-2" x-text="newsResults.clustering_insights.total_articles"></div>
+                            <div class="text-sm text-indigo-700">Articles Analyzed</div>
+                            <div class="text-xs text-indigo-600 mt-1">Analysis Complete</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-green-600 mb-2" x-text="newsResults.clustering_insights.size_balance.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())"></div>
+                            <div class="text-sm text-green-700">Size Distribution</div>
+                            <div class="text-xs text-green-600 mt-1">Cluster Balance</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- NEW: Single Cluster Display -->
+                <div x-show="newsResults.narrative_clusters && newsResults.narrative_clusters.length === 1" class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6 mb-8">
+                    <div class="text-center">
+                        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <span class="text-green-600 text-2xl">📊</span>
+                        </div>
+                        <h4 class="text-xl font-medium text-green-800 mb-2">Single Cluster Analysis</h4>
+                        <p class="text-green-700 mb-4">The algorithm detected that all articles share similar narrative patterns, suggesting no natural groupings exist in this dataset.</p>
+                        
+                        <div x-show="newsResults.clustering_insights" class="bg-white p-4 rounded border border-green-200 inline-block">
+                            <div class="text-sm text-green-800">
+                                <p><strong>Quality Assessment:</strong> <span x-text="newsResults.clustering_insights.clustering_quality.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Cluster Summary Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -414,23 +551,23 @@
                                 <div class="space-y-1 text-xs">
                                     <div class="flex justify-between">
                                         <span>Ideological Stance:</span>
-                                        <span class="font-medium" x-text="Math.round(cluster.bias_profile.ideological_stance)"></span>
+                                        <span class="font-medium" x-text="cluster.bias_profile.ideological_stance.toFixed(1)"></span>
                                     </div>
                                     <div class="flex justify-between">
                                         <span>Factual Grounding:</span>
-                                        <span class="font-medium" x-text="Math.round(cluster.bias_profile.factual_grounding)"></span>
+                                        <span class="font-medium" x-text="cluster.bias_profile.factual_grounding.toFixed(1)"></span>
                                     </div>
                                     <div class="flex justify-between">
                                         <span>Framing Choices:</span>
-                                        <span class="font-medium" x-text="Math.round(cluster.bias_profile.framing_choices)"></span>
+                                        <span class="font-medium" x-text="cluster.bias_profile.framing_choices.toFixed(1)"></span>
                                     </div>
                                     <div class="flex justify-between">
                                         <span>Emotional Tone:</span>
-                                        <span class="font-medium" x-text="Math.round(cluster.bias_profile.emotional_tone)"></span>
+                                        <span class="font-medium" x-text="cluster.bias_profile.emotional_tone.toFixed(1)"></span>
                                     </div>
                                     <div class="flex justify-between">
                                         <span>Source Transparency:</span>
-                                        <span class="font-medium" x-text="Math.round(cluster.bias_profile.source_transparency)"></span>
+                                        <span class="font-medium" x-text="cluster.bias_profile.source_transparency.toFixed(1)"></span>
                                     </div>
                                 </div>
                             </div>
@@ -461,8 +598,166 @@
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- NEW: Clustering Explanation -->
+                            <div x-show="cluster.clustering_explanation" class="mt-4 pt-3 border-t border-gray-200">
+                                <p class="text-sm font-medium text-gray-700 mb-2">🔍 Why This Cluster Exists:</p>
+                                <div class="bg-blue-50 p-3 rounded text-xs text-blue-800 border-l-3 border-blue-400">
+                                    <p class="italic leading-relaxed" x-text="cluster.clustering_explanation"></p>
+                                </div>
+                            </div>
                         </div>
                     </template>
+                </div>
+
+
+                
+                <!-- Enhanced Scoring Guidelines -->
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 mb-8">
+                    <h4 class="text-lg font-medium text-blue-800 mb-4">📊 Enhanced Scoring Guidelines (0-100 Scale)</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                        <div class="bg-white p-3 rounded border border-blue-200">
+                            <h5 class="font-medium text-blue-800 mb-2">Ideological Stance</h5>
+                            <div class="space-y-1 text-xs">
+                                <div class="flex justify-between"><span>0-20:</span><span class="text-red-600">Strong left/progressive</span></div>
+                                <div class="flex justify-between"><span>21-40:</span><span class="text-orange-600">Moderate left</span></div>
+                                <div class="flex justify-between"><span>41-60:</span><span class="text-yellow-600">Center/balanced</span></div>
+                                <div class="flex justify-between"><span>61-80:</span><span class="text-orange-600">Moderate right</span></div>
+                                <div class="flex justify-between"><span>81-100:</span><span class="text-red-600">Strong right/conservative</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-3 rounded border border-blue-200">
+                            <h5 class="font-medium text-blue-800 mb-2">Factual Grounding</h5>
+                            <div class="space-y-1 text-xs">
+                                <div class="flex justify-between"><span>0-20:</span><span class="text-red-600">Unverified claims</span></div>
+                                <div class="flex justify-between"><span>21-40:</span><span class="text-orange-600">Poor verification</span></div>
+                                <div class="flex justify-between"><span>41-60:</span><span class="text-yellow-600">Mixed verification</span></div>
+                                <div class="flex justify-between"><span>61-80:</span><span class="text-green-600">Good verification</span></div>
+                                <div class="flex justify-between"><span>81-100:</span><span class="text-green-600">Well-sourced facts</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-3 rounded border border-blue-200">
+                            <h5 class="font-medium text-blue-800 mb-2">Framing Choices</h5>
+                            <div class="space-y-1 text-xs">
+                                <div class="flex justify-between"><span>0-20:</span><span class="text-red-600">Heavy bias</span></div>
+                                <div class="flex justify-between"><span>21-40:</span><span class="text-orange-600">Significant bias</span></div>
+                                <div class="flex justify-between"><span>41-60:</span><span class="text-yellow-600">Moderate bias</span></div>
+                                <div class="flex justify-between"><span>61-80:</span><span class="text-green-600">Minimal bias</span></div>
+                                <div class="flex justify-between"><span>81-100:</span><span class="text-green-600">Objective</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-3 rounded border border-blue-200">
+                            <h5 class="font-medium text-blue-800 mb-2">Emotional Tone</h5>
+                            <div class="space-y-1 text-xs">
+                                <div class="flex justify-between"><span>0-20:</span><span class="text-red-600">Highly inflammatory</span></div>
+                                <div class="flex justify-between"><span>21-40:</span><span class="text-orange-600">Significantly emotional</span></div>
+                                <div class="flex justify-between"><span>41-60:</span><span class="text-yellow-600">Moderate emotion</span></div>
+                                <div class="flex justify-between"><span>61-80:</span><span class="text-green-600">Minimal emotion</span></div>
+                                <div class="flex justify-between"><span>81-100:</span><span class="text-green-600">Neutral/analytical</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-3 rounded border border-blue-200">
+                            <h5 class="font-medium text-blue-800 mb-2">Source Transparency</h5>
+                            <div class="space-y-1 text-xs">
+                                <div class="flex justify-between"><span>0-20:</span><span class="text-red-600">Anonymous sources</span></div>
+                                <div class="flex justify-between"><span>21-40:</span><span class="text-orange-600">Poor attribution</span></div>
+                                <div class="flex justify-between"><span>41-60:</span><span class="text-yellow-600">Some attribution</span></div>
+                                <div class="flex justify-between"><span>61-80:</span><span class="text-green-600">Good attribution</span></div>
+                                <div class="flex justify-between"><span>81-100:</span><span class="text-green-600">Clear named sources</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cross-Outlet Comparison Section -->
+                <div class="bg-white border border-gray-200 rounded-lg p-6 mb-8">
+                    <h4 class="text-lg font-medium text-gray-800 mb-4">🧠 Intelligent Cross-Outlet Comparison</h4>
+                    <p class="text-sm text-gray-600 mb-4">Automatically compare contrasting news outlets from your analysis to reveal media bias patterns. The system intelligently selects the most contrasting articles based on bias scores and clustering.</p>
+                    <div class="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-200">
+                        <div class="flex items-center text-xs text-blue-700">
+                            <span class="mr-2">⚡</span>
+                            <span><strong>Enhanced Analysis:</strong> Uses extended AI processing (1000 tokens) for detailed cross-outlet comparison vs. concise scoring (300 tokens) for individual articles</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Automatic Comparison Trigger -->
+                    <div class="text-center mb-6">
+                        <button @click="autoCompareOutlets()" :disabled="comparisonLoading || !hasAnalysisResults" class="inline-flex items-center px-8 py-4 border border-transparent text-base font-medium rounded-md text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg">
+                            <span x-show="!comparisonLoading">🧠 Auto-Compare Contrasting Outlets</span>
+                            <span x-show="comparisonLoading">🔍 Analyzing Contrasts...</span>
+                        </button>
+                        
+                        <div x-show="!hasAnalysisResults" class="mt-3 text-sm text-gray-500">
+                            Run a news analysis first to enable automatic outlet comparison
+                        </div>
+                    </div>
+
+                    <!-- Comparison Results -->
+                    <div x-show="comparisonResults" class="border-t border-gray-200 pt-6">
+                        <h5 class="text-md font-medium text-gray-800 mb-3">Intelligent Comparison Analysis</h5>
+                        
+                        <!-- Selection Strategy Info -->
+                        <div x-show="comparisonResults.selection_strategy" class="bg-indigo-50 p-4 rounded-lg mb-4 border border-indigo-200">
+                            <h6 class="text-sm font-medium text-indigo-800 mb-2">🧠 Intelligent Selection Strategy</h6>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                                <div>
+                                    <span class="text-indigo-700 font-medium">Strategy:</span>
+                                    <span class="ml-2 capitalize" x-text="comparisonResults.selection_strategy?.replace('_', ' ')"></span>
+                                </div>
+                                <div>
+                                    <span class="text-indigo-700 font-medium">Articles Analyzed:</span>
+                                    <span class="ml-2" x-text="comparisonResults.articles_selected_from"></span>
+                                </div>
+                                <div>
+                                    <span class="text-indigo-700 font-medium">Clusters Found:</span>
+                                    <span class="ml-2" x-text="comparisonResults.clusters_analyzed"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- AI-Generated Analysis -->
+                        <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                            <div class="text-sm text-gray-700 leading-relaxed" x-html="formatComparisonAnalysis(comparisonResults.comparison_analysis)"></div>
+                        </div>
+                        
+                        <!-- Quantitative Metrics -->
+                        <div x-show="comparisonResults.comparison_metrics && !comparisonResults.comparison_metrics.error" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <h6 class="text-sm font-medium text-blue-800 mb-2">Score Variance Analysis</h6>
+                                <div class="space-y-2 text-xs">
+                                    <template x-for="(metrics, dimension) in comparisonResults.comparison_metrics.score_variance" :key="dimension">
+                                        <div class="flex justify-between">
+                                            <span class="text-blue-700" x-text="dimension.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())"></span>
+                                            <span class="font-medium" x-text="`${metrics.mean} ±${Math.sqrt(metrics.variance).toFixed(1)}`"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-green-50 p-4 rounded-lg">
+                                <h6 class="text-sm font-medium text-green-800 mb-2">Comparison Summary</h6>
+                                <div class="space-y-2 text-xs">
+                                    <div class="flex justify-between">
+                                        <span class="text-green-700">Outlets Analyzed:</span>
+                                        <span class="font-medium" x-text="comparisonResults.outlets_analyzed.join(', ')"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-green-700">Comparison Quality:</span>
+                                        <span class="font-medium capitalize" x-text="comparisonResults.comparison_metrics.comparison_quality"></span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-green-700">Processing Time:</span>
+                                        <span class="font-medium" x-text="`${comparisonResults.processing_time_ms}ms`"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Model Information -->
+                        <div class="text-xs text-gray-500 mt-4 text-center">
+                            Analysis powered by <span class="font-medium" x-text="comparisonResults.model_used"></span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Multiple Visualization Types -->
@@ -508,7 +803,7 @@
                     <template x-for="coverage in newsResults.story_coverage_analysis.same_story_different_coverage" :key="coverage.topic">
                         <div class="border border-gray-200 rounded-lg p-4 mb-4">
                             <h5 class="font-medium text-gray-900 mb-2" x-text="`Topic: ${coverage.topic}`"></h5>
-                            <p class="text-sm text-gray-600 mb-3" x-text="`Covered by ${coverage.sources.length} different sources with bias scores ranging from ${Math.round(coverage.bias_range.min)} to ${Math.round(coverage.bias_range.max)}`"></p>
+                            <p class="text-sm text-gray-600 mb-3" x-text="`Covered by ${coverage.sources.length} different sources with bias scores ranging from ${coverage.bias_range.min.toFixed(1)} to ${coverage.bias_range.max.toFixed(1)}`"></p>
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 <template x-for="article in coverage.articles" :key="article.title">
@@ -517,7 +812,7 @@
                                         <p class="text-xs text-gray-600 mb-2" x-text="article.title.substring(0, 80) + '...'"></p>
                                         <div class="flex justify-between items-center">
                                             <span class="text-xs text-gray-500">Bias Score:</span>
-                                            <span class="text-xs font-bold" :class="getDimensionScoreColor(article.overall_score)" x-text="`${article.overall_score}/100`"></span>
+                                            <span class="text-xs font-bold" :class="getDimensionScoreColor(article.overall_score)" x-text="`${article.overall_score.toFixed(1)}/100`"></span>
                                         </div>
                                     </div>
                                 </template>
@@ -536,7 +831,7 @@
                                 <div class="space-y-2 text-sm">
                                     <div class="flex justify-between">
                                         <span class="text-gray-600">Average Bias:</span>
-                                        <span class="font-medium" :class="getDimensionScoreColor(data.average_bias)" x-text="`${Math.round(data.average_bias)}/100`"></span>
+                                        <span class="font-medium" :class="getDimensionScoreColor(data.average_bias)" x-text="`${data.average_bias.toFixed(1)}/100`"></span>
                                     </div>
                                     <div class="flex justify-between">
                                         <span class="text-gray-600">Confidence:</span>
@@ -548,7 +843,7 @@
                                     </div>
                                     <div class="flex justify-between">
                                         <span class="text-gray-600">Range:</span>
-                                        <span class="text-xs" x-text="`${Math.round(data.score_range[0])}-${Math.round(data.score_range[1])}`"></span>
+                                        <span class="text-xs" x-text="`${data.score_range[0].toFixed(1)}-${data.score_range[1].toFixed(1)}`"></span>
                                     </div>
                                 </div>
                             </div>
@@ -578,7 +873,7 @@
                 },
                 newsAnalysis: {
                     topic: '',
-                    max_articles: 15
+                    max_articles: 20
                 },
                 analysisResult: null,
                 newsResults: null,
@@ -587,6 +882,13 @@
                 errorMessage: '',
                 newsErrorMessage: '',
                 radarChart: null,
+                comparisonData: {
+                    article1: { title: '', content: '', source: '' },
+                    article2: { title: '', content: '', source: '' }
+                },
+                comparisonResults: null,
+                comparisonLoading: false,
+                hasAnalysisResults: false,
 
                 init() {
                     this.$watch('analysisResult', (result) => {
@@ -607,6 +909,7 @@
                     this.loading = true;
                     this.errorMessage = '';
                     this.analysisResult = null;
+                    this.comparisonResults = null; // Clear cross-outlet comparison results
 
                     try {
                         const response = await fetch('/analyze/article', {
@@ -633,6 +936,8 @@
                     this.newsLoading = true;
                     this.newsErrorMessage = '';
                     this.newsResults = null;
+                    this.comparisonResults = null; // Clear cross-outlet comparison results
+                    this._allArticles = []; // Clear previous articles for fast rendering
 
                     try {
                         const response = await fetch('/analyze/news', {
@@ -647,13 +952,37 @@
                         }
 
                         this.newsResults = await response.json();
-                        this.activeTab = 'clustering';
+                        
+                        // Pre-process articles for fast display
+                        this._allArticles = [];
+                        if (this.newsResults.narrative_clusters) {
+                            this.newsResults.narrative_clusters.forEach(cluster => {
+                                cluster.articles.forEach(article => {
+                                    article._clusterId = cluster.cluster_id;
+                                    this._allArticles.push(article);
+                                });
+                            });
+                        }
+                        
+                        this.hasAnalysisResults = true;
+                        this.activeTab = 'news';
                     } catch (error) {
                         this.newsErrorMessage = error.message;
                         console.error('News analysis error:', error);
                     } finally {
                         this.newsLoading = false;
                     }
+                },
+
+                // Helper functions for displaying all articles
+                _allArticles: [],
+                
+                getAllArticles() {
+                    return this._allArticles;
+                },
+
+                getArticleCluster(article) {
+                    return article._clusterId || 0;
                 },
 
                 async loadSampleArticles() {
@@ -754,7 +1083,7 @@
                                         label: function(context) {
                                             return [
                                                 `Source: ${context.raw.source}`,
-                                                `Bias Score: ${context.raw.bias_score}/100`,
+                                                `Bias Score: ${context.raw.bias_score.toFixed(1)}/100`,
                                                 `Coordinates: (${context.raw.x.toFixed(2)}, ${context.raw.y.toFixed(2)})`
                                             ];
                                         }
@@ -813,7 +1142,7 @@
                                             const point = data.points[context.dataIndex];
                                             return [
                                                 `Source: ${point.source}`,
-                                                `Bias Score: ${point.bias_score}/100`,
+                                                `Bias Score: ${point.bias_score.toFixed(1)}/100`,
                                                 `Cluster: ${point.cluster + 1}`
                                             ];
                                         }
@@ -881,7 +1210,7 @@
 
                 showPhraseDetails(phrase) {
                     const scoreImpacts = Object.entries(phrase.score_impact || {})
-                        .map(([dim, impact]) => `${this.formatDimensionName(dim)}: ${impact > 0 ? '+' : ''}${impact}`)
+                        .map(([dim, impact]) => `${this.formatDimensionName(dim)}: ${impact > 0 ? '+' : ''}${impact.toFixed(1)}`)
                         .join('\n');
                     
                     alert(`Phrase: "${phrase.text}"\n\nExplanation: ${phrase.explanation}\n\nConfidence: ${phrase.confidence}%\n\nScore Impacts:\n${scoreImpacts}`);
@@ -889,11 +1218,11 @@
 
                 getDimensionExplanation(dimension, score) {
                     const explanations = {
-                        ideological_stance: score < 30 ? 'Strong left-leaning perspective' : score < 50 ? 'Moderate left-leaning' : score < 70 ? 'Centrist/balanced' : 'Right-leaning perspective',
-                        factual_grounding: score < 30 ? 'Low factual basis, many unsubstantiated claims' : score < 50 ? 'Some factual issues' : score < 70 ? 'Mostly factual with some gaps' : 'Strong factual foundation',
-                        framing_choices: score < 30 ? 'Highly biased framing, loaded language' : score < 50 ? 'Some biased framing' : score < 70 ? 'Fairly balanced presentation' : 'Objective, balanced framing',
-                        emotional_tone: score < 30 ? 'Highly emotional, inflammatory language' : score < 50 ? 'Somewhat emotional' : score < 70 ? 'Moderate tone' : 'Calm, analytical tone',
-                        source_transparency: score < 30 ? 'Poor source attribution' : score < 50 ? 'Some source issues' : score < 70 ? 'Adequate sourcing' : 'Excellent source transparency'
+                        ideological_stance: score <= 20 ? 'Strong left/progressive bias' : score <= 40 ? 'Moderate left bias' : score <= 60 ? 'Center/balanced' : score <= 80 ? 'Moderate right bias' : 'Strong right/conservative bias',
+                        factual_grounding: score <= 20 ? 'Unverified claims, no sources' : score <= 40 ? 'Poor verification, significant gaps' : score <= 60 ? 'Mixed verification, some issues' : score <= 80 ? 'Good verification, minor gaps' : 'Well-sourced, verified facts',
+                        framing_choices: score <= 20 ? 'Heavy bias in emphasis/omission' : score <= 40 ? 'Significant biased framing' : score <= 60 ? 'Moderate bias, some balance' : score <= 80 ? 'Minimal bias, good balance' : 'Objective, balanced presentation',
+                        emotional_tone: score <= 20 ? 'Highly inflammatory, emotional' : score <= 40 ? 'Significantly emotional' : score <= 60 ? 'Moderate emotion' : score <= 80 ? 'Minimal emotion' : 'Neutral, analytical tone',
+                        source_transparency: score <= 20 ? 'Anonymous sources, "people say"' : score <= 40 ? 'Poor attribution, unclear sources' : score <= 60 ? 'Some attribution, mixed clarity' : score <= 80 ? 'Good attribution, clear sources' : 'Excellent transparency, named sources'
                     };
                     return explanations[dimension] || 'No explanation available';
                 },
@@ -947,23 +1276,130 @@
 
                 getConfidenceInterval(confidenceIntervals, dimension) {
                     if (!confidenceIntervals || !confidenceIntervals[dimension]) {
-                        return '(±10)';
+                        return '(±10.0)';
                     }
                     const interval = confidenceIntervals[dimension];
                     if (Array.isArray(interval) && interval.length === 2) {
-                        return `(${interval[0]}-${interval[1]})`;
+                        return `(${interval[0].toFixed(1)}-${interval[1].toFixed(1)})`;
                     }
-                    return '(±10)';
+                    return '(±10.0)';
                 },
 
                 truncateContent(content, maxLength) {
                     if (!content) return '';
                     if (content.length <= maxLength) return content;
                     return content.substring(0, maxLength) + '...';
+                },
+
+                async compareOutlets() {
+                    this.comparisonLoading = true;
+                    this.comparisonResults = null;
+
+                    // Validate input
+                    if (!this.comparisonData.article1.title || !this.comparisonData.article1.content || !this.comparisonData.article1.source ||
+                        !this.comparisonData.article2.title || !this.comparisonData.article2.content || !this.comparisonData.article2.source) {
+                        alert('Please fill in all fields for both articles to compare.');
+                        this.comparisonLoading = false;
+                        return;
+                    }
+
+                    try {
+                        const articles = [
+                            {
+                                title: this.comparisonData.article1.title,
+                                content: this.comparisonData.article1.content.substring(0, 1000), // Limit content length
+                                source: this.comparisonData.article1.source
+                            },
+                            {
+                                title: this.comparisonData.article2.title,
+                                content: this.comparisonData.article2.content.substring(0, 1000), // Limit content length
+                                source: this.comparisonData.article2.source
+                            }
+                        ];
+
+                        const response = await fetch('/compare/outlets', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ articles })
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.detail || 'Failed to compare outlets');
+                        }
+
+                        this.comparisonResults = await response.json();
+                    } catch (error) {
+                        alert(`Comparison failed: ${error.message}`);
+                        console.error('Comparison error:', error);
+                    } finally {
+                        this.comparisonLoading = false;
+                    }
+                },
+
+                async autoCompareOutlets() {
+                    this.comparisonLoading = true;
+                    this.comparisonResults = null;
+
+                    try {
+                        const response = await fetch('/compare/auto', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.detail || 'Failed to auto-compare outlets');
+                        }
+
+                        this.comparisonResults = await response.json();
+                    } catch (error) {
+                        alert(`Auto-comparison failed: ${error.message}`);
+                        console.error('Auto-comparison error:', error);
+                    } finally {
+                        this.comparisonLoading = false;
+                    }
+                },
+
+                formatComparisonAnalysis(analysis) {
+                    if (!analysis) return '';
+                    
+                    // Clean up the text formatting issues
+                    let cleaned = analysis
+                        // Remove leading ": " from paragraphs that start with it
+                        .replace(/^:\s*/gm, '')
+                        // Remove trailing "-" dashes that separate paragraphs
+                        .replace(/\s*-\s*$/gm, '')
+                        // Clean up multiple dashes
+                        .replace(/\s*-\s*\n\s*-\s*/g, '\n\n')
+                        // Remove single dashes at line ends
+                        .replace(/\s*-\s*$/gm, '')
+                        // Clean up extra whitespace
+                        .replace(/\n\s*\n\s*\n/g, '\n\n')
+                        .trim();
+                    
+                    // Convert markdown to HTML with proper formatting
+                    let formatted = cleaned
+                        // Convert **bold** to proper headers with styling
+                        .replace(/\*\*(.*?)\*\*/g, '<h4 class="text-lg font-semibold text-gray-900 mb-3 mt-6 first:mt-0 border-b border-gray-200 pb-2">$1</h4>')
+                        // Convert double line breaks to proper paragraph spacing
+                        .replace(/\n\n/g, '</p><p class="text-sm text-gray-700 leading-relaxed mb-4">')
+                        // Convert single line breaks to <br> for line breaks within paragraphs
+                        .replace(/\n/g, '<br>');
+                    
+                    // Wrap in paragraphs
+                    formatted = '<p class="text-sm text-gray-700 leading-relaxed mb-4">' + formatted + '</p>';
+                    
+                    // Clean up any empty paragraphs
+                    formatted = formatted.replace(/<p class="text-sm text-gray-700 leading-relaxed mb-4"><\/p>/g, '');
+                    
+                    // Add some spacing after headers
+                    formatted = formatted.replace(/(<h4[^>]*>.*?<\/h4>)/g, '$1<div class="mb-2"></div>');
+                    
+                    return formatted;
                 }
             }
         }
     </script>
 </body>
-</html>
 </html>

@@ -20,7 +20,7 @@ from app.core.narrative_clustering import NarrativeClusteringEngine
 from app.models.schemas import (
     ArticleInput, BiasAnalysisOutput, BatchAnalysisRequest,
     BatchAnalysisResponse, NewsAnalysisRequest, NewsAnalysisResponse,
-    NarrativeClusterOutput
+    NarrativeClusterOutput, OutletComparisonRequest, OutletComparisonResponse
 )
 from config.settings import settings
 
@@ -49,7 +49,10 @@ bias_detector = BiasDetectionEngine()
 real_bias_analyzer = RealBiasAnalyzer()  # NEW: Real NLP-based analysis
 news_fetcher = NewsAPIFetcher()  # Add API key from settings if available
 rss_fetcher = RSSNewsFetcher()
-clustering_engine = NarrativeClusteringEngine()
+clustering_engine = NarrativeClusteringEngine(max_clusters=5)  # Minimum 3, maximum 5 clusters
+
+# Store last analysis results for auto-comparison
+last_analysis_results = None
 
 # Mount static files for web interface
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -87,10 +90,16 @@ async def health_check():
     return {
         "status": "healthy",
         "services": {
-            "bias_detector": "operational",
+            "bias_detector": "operational" if bias_detector.client else "fallback_mode",
             "news_fetcher": "operational",
             "clustering_engine": "operational",
             "api": "operational"
+        },
+        "openai_status": {
+            "client_available": bias_detector.client is not None,
+            "model": bias_detector.model_name if bias_detector.client else "N/A",
+            "api_key_configured": bool(bias_detector.client),
+            "fallback_mode": bias_detector.client is None
         },
         "performance": {
             "cache_enabled": True,
@@ -120,15 +129,15 @@ async def analyze_article(article: ArticleInput):
                 detail="Article content must be at least 50 characters"
             )
 
-        # Use real NLP-based bias analysis
-        analysis_result = await real_bias_analyzer.analyze_article(
+        # Use OpenAI GPT-based bias analysis for authentic, varied scoring
+        analysis_result = await bias_detector.analyze_article(
             title=article.title,
             content=article.content,
             source=article.source
         )
 
         processing_time = (time.time() - start_time) * 1000
-        logger.info("Article analyzed with explainable AI",
+        logger.info("Article analyzed with OpenAI GPT",
                    article_id=analysis_result.get("article_id"),
                    processing_time_ms=processing_time,
                    overall_score=analysis_result.get("overall_score"),
@@ -209,7 +218,8 @@ async def analyze_current_news(request: NewsAnalysisRequest):
             # ALWAYS use topic-specific articles when topic is provided
             articles = await news_fetcher.fetch_trending_topic(
                 query=request.topic,
-                sources=request.sources
+                sources=request.sources,
+                max_articles=request.max_articles
             )
             logger.info(f"Using topic-specific articles for: {request.topic}")
         else:
@@ -220,10 +230,10 @@ async def analyze_current_news(request: NewsAnalysisRequest):
         if not articles:
             raise HTTPException(status_code=404, detail="No articles found for the specified topic")
 
-        # Analyze each article for bias using REAL NLP techniques
-        logger.info(f"Analyzing {len(articles)} articles for bias using real NLP methods")
+        # Analyze each article for bias using OpenAI GPT for authentic, varied scoring
+        logger.info(f"Analyzing {len(articles)} articles for bias using OpenAI GPT analysis")
         analysis_tasks = [
-            real_bias_analyzer.analyze_article(
+            bias_detector.analyze_article(
                 title=article.title,
                 content=article.content,
                 source=article.source
@@ -232,7 +242,7 @@ async def analyze_current_news(request: NewsAnalysisRequest):
         ]
         
         analyses = await asyncio.gather(*analysis_tasks)
-        logger.info(f"Real NLP analysis completed for {len(analyses)} articles")
+        logger.info(f"OpenAI GPT analysis completed for {len(analyses)} articles")
         
         # Combine articles with their analyses
         articles_with_analysis = []
@@ -246,9 +256,17 @@ async def analyze_current_news(request: NewsAnalysisRequest):
                 'analysis': analysis
             })
 
+        # Check if clustering is appropriate
+        clustering_recommendation = clustering_engine.should_cluster(articles_with_analysis)
+        logger.info(f"Clustering recommendation: {clustering_recommendation}")
+        
         # Perform narrative clustering
         logger.info("Performing narrative clustering analysis")
         clusters = clustering_engine.cluster_narratives(articles_with_analysis)
+        
+        # Get clustering insights for transparency
+        clustering_insights = clustering_engine.get_clustering_insights(clusters, len(articles_with_analysis))
+        logger.info(f"Clustering insights: {clustering_insights}")
         
         # Generate visualization data
         cluster_viz_data = clustering_engine.get_cluster_visualization_data(clusters)
@@ -263,10 +281,20 @@ async def analyze_current_news(request: NewsAnalysisRequest):
                 dominant_themes=cluster['dominant_themes'],
                 bias_profile=cluster['bias_profile'],
                 representative_phrases=cluster['representative_phrases'],
-                articles=cluster['articles']
+                articles=cluster['articles'],
+                clustering_explanation=cluster.get('clustering_explanation')  # Include explanation
             )
             for cluster in cluster_viz_data['clusters']
         ]
+
+        # Store results for auto-comparison
+        global last_analysis_results
+        last_analysis_results = {
+            'articles_with_analysis': articles_with_analysis,
+            'clusters': cluster_viz_data['clusters'],  # Use serialized clusters instead of raw objects
+            'cluster_outputs': cluster_outputs,
+            'timestamp': datetime.now().isoformat()
+        }
 
         logger.info("News analysis pipeline completed",
                    articles_analyzed=len(articles),
@@ -281,12 +309,141 @@ async def analyze_current_news(request: NewsAnalysisRequest):
             narrative_clusters=cluster_outputs,
             cluster_visualizations=cluster_viz_data.get('visualizations'),
             story_coverage_analysis=cluster_viz_data.get('story_coverage_analysis'),
+            clustering_insights=clustering_insights,  # Add clustering insights for transparency
+            clustering_recommendation=clustering_recommendation,  # Add clustering recommendation
             timestamp=datetime.now().isoformat()
         )
 
     except Exception as e:
         logger.error("News analysis failed", error=str(e))
         raise HTTPException(status_code=500, detail=f"News analysis failed: {str(e)}")
+
+
+@app.post("/compare/outlets")
+async def compare_outlet_framing(request: OutletComparisonRequest):
+    """Compare how different news outlets frame the same story"""
+    try:
+        bias_detector = BiasDetectionEngine()
+        
+        # Validate request
+        if len(request.articles) < 2:
+            raise HTTPException(status_code=400, detail="Need at least 2 articles to compare")
+        
+        # Prepare articles for comparison
+        articles_for_comparison = []
+        for article_data in request.articles:
+            # Analyze bias for each article if not already provided
+            if 'bias_scores' not in article_data or not article_data['bias_scores']:
+                bias_result = await bias_detector.analyze_article(
+                    title=article_data.get('title', ''),
+                    content=article_data.get('content', ''),
+                    source=article_data.get('source', 'Unknown')
+                )
+                article_data['bias_scores'] = bias_result.get('dimension_scores', {})
+            
+            articles_for_comparison.append(article_data)
+        
+        # Perform cross-outlet comparison
+        comparison_result = await bias_detector.compare_outlet_framing(articles_for_comparison)
+        
+        return comparison_result
+        
+    except Exception as e:
+        logger.error(f"Outlet comparison failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Comparison failed: {str(e)}")
+
+
+@app.post("/compare/auto")
+async def auto_compare_outlets():
+    """Automatically compare contrasting news outlets from the last analysis"""
+    try:
+        global last_analysis_results
+        
+        if not last_analysis_results:
+            raise HTTPException(
+                status_code=400, 
+                detail="Please run a news analysis first to enable automatic outlet comparison"
+            )
+        
+        articles_with_analysis = last_analysis_results['articles_with_analysis']
+        clusters = last_analysis_results['clusters']
+        
+        if len(articles_with_analysis) < 2:
+            raise HTTPException(
+                status_code=400, 
+                detail="Need at least 2 articles to compare"
+            )
+        
+        # Intelligent selection of contrasting outlets
+        selected_articles = _select_contrasting_articles(articles_with_analysis, clusters)
+        
+        if len(selected_articles) < 2:
+            raise HTTPException(
+                status_code=400, 
+                detail="Could not find contrasting articles for comparison"
+            )
+        
+        # Prepare articles for comparison
+        articles_for_comparison = []
+        for article_data in selected_articles:
+            articles_for_comparison.append({
+                'title': article_data['title'],
+                'content': article_data['content'],
+                'source': article_data['source'],
+                'bias_scores': article_data['analysis'].get('dimension_scores', {})
+            })
+        
+        # Perform cross-outlet comparison
+        comparison_result = await bias_detector.compare_outlet_framing(articles_for_comparison)
+        
+        # Add metadata about the selection
+        comparison_result['selection_strategy'] = 'intelligent_contrast'
+        comparison_result['articles_selected_from'] = len(articles_with_analysis)
+        comparison_result['clusters_analyzed'] = len(clusters)
+        
+        return comparison_result
+        
+    except Exception as e:
+        logger.error(f"Auto outlet comparison failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Auto comparison failed: {str(e)}")
+
+
+def _select_contrasting_articles(articles_with_analysis: List[Dict], clusters: List[Dict]) -> List[Dict]:
+    """Intelligently select contrasting articles for comparison"""
+    if len(articles_with_analysis) < 2:
+        return articles_with_analysis
+    
+    # Strategy 1: Try to find articles from different clusters
+    if len(clusters) > 1:
+        # Get one article from each of the two largest clusters
+        sorted_clusters = sorted(clusters, key=lambda x: x['size'], reverse=True)
+        selected_articles = []
+        
+        for cluster in sorted_clusters[:2]:
+            if cluster['articles']:
+                # Get the article with the most contrasting bias profile
+                cluster_articles = [a for a in articles_with_analysis if a['title'] in [art.get('title', '') for art in cluster['articles']]]
+                if cluster_articles:
+                    selected_articles.append(cluster_articles[0])
+        
+        if len(selected_articles) >= 2:
+            return selected_articles[:2]
+    
+    # Strategy 2: Find articles with the most contrasting overall bias scores
+    articles_with_scores = []
+    for article in articles_with_analysis:
+        overall_score = article['analysis'].get('overall_score', 50)
+        articles_with_scores.append((article, overall_score))
+    
+    # Sort by overall score
+    articles_with_scores.sort(key=lambda x: x[1])
+    
+    # Select the most contrasting pair (lowest vs highest)
+    if len(articles_with_scores) >= 2:
+        return [articles_with_scores[0][0], articles_with_scores[-1][0]]
+    
+    # Strategy 3: Fallback to first two articles
+    return articles_with_analysis[:2]
 
 
 @app.get("/demo/sample-articles")
