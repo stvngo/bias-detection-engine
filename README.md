@@ -10,7 +10,7 @@ A production-ready bias detection system that analyzes news articles across 5 di
 - **Real-Time News Analysis**: Fetches 10-20 recent articles from NewsAPI.org for any topic
 - **5-Dimension Bias Scoring**: Comprehensive analysis across multiple bias vectors
 - **Explainable AI**: Highlights specific phrases that contribute to bias scores
-- **Sub-200ms Performance**: Optimized for real-time analysis
+- **Optimized Performance**: Optimized for real-time analysis
 - **Narrative Clustering**: Groups articles by similar narratives with PCA/t-SNE visualizations (3-5 clusters)
 - **Story Coverage Analysis**: Shows how different outlets cover the same story
 - **Professional Web Interface**: Interactive Tailwind CSS UI with charts and visualizations
