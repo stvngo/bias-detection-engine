@@ -2,7 +2,7 @@
 
 ## 🚀 AI-Powered Real-Time Media Bias Analysis
 
-A production-ready bias detection system that analyzes news articles across 5 dimensions using advanced NLP techniques, real-time news ingestion, and explainable AI. Built for comprehensive media bias analysis with sub-200ms response times. **Live URL: https://bias-lab-api-357263171970.us-central1.run.app/**
+A production-ready bias detection system that analyzes news articles across 5 dimensions using advanced NLP techniques, real-time news ingestion, and explainable AI. Built for comprehensive media bias analysis with sub-500ms response times. **Live URL: https://bias-lab-api-357263171970.us-central1.run.app/**
 - **Note**: Article gathering takes most amount of time, but analyzing is sub-500ms per article.
 
 ## 🎯 Key Features
