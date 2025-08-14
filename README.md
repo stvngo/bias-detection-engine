@@ -1,4 +1,4 @@
-# (LIVE URL BELOW) The Bias Lab - Advanced Media Bias Detection Engine 
+# The Bias Lab - Advanced Media Bias Detection Engine 
 
 ## 🚀 AI-Powered Real-Time Media Bias Analysis
 
